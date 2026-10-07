@@ -1,0 +1,32 @@
+# Local configuration and credentials (keep the documented template)
+.env
+.env.*
+!.env.example
+
+# Client dependencies and generated builds
+node_modules/
+/client/dist/
+/server/dist/
+*.tsbuildinfo
+
+# Legacy Go build outputs and test/coverage artifacts
+/server/linksmith
+/server/linksmith.exe
+*.test
+*.test.exe
+/server/coverage.out
+/server/coverage.html
+/server/coverage/
+
+# Temporary verification tools, database data, and screenshots
+/.verification/
+
+# Logs and local editor/OS files
+*.log
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
