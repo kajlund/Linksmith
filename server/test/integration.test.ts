@@ -268,6 +268,184 @@ test('PostgreSQL catalog CRUD, migration compatibility, filters, and concurrent 
     );
     assert.equal(recent.items[0].name, 'Low');
     assert.equal(recent.items[3].name, 'Zebra');
+
+    const preview = await request('POST', '/import/preview', {
+      files: [
+        {
+          name: 'batch.md',
+          text: '- [Import A](https://import.example/a) - Existing notes\n- [Import B](https://import.example/b)',
+        },
+      ],
+    });
+    assert.equal(preview.candidates.length, 2);
+    const entries = preview.candidates.map(
+      (candidate: {
+        id: string;
+        name: string;
+        url: string;
+        description: string;
+        notes: string;
+      }) => ({
+        ...candidate,
+        reviewed: true,
+        category: 'Import root/Import child',
+        tags: ['Import tag'],
+      }),
+    );
+    const imported = await request('POST', '/import/apply', { entries });
+    assert.equal(imported.created, 2);
+    assert.equal(imported.skipped, 0);
+    const preserved = await request(
+      'GET',
+      `/resources/${imported.results[0].resourceId}`,
+    );
+    const rerun = await request('POST', '/import/apply', {
+      entries: entries.map((entry: object) => ({
+        ...entry,
+        name: 'Must not overwrite',
+        notes: 'Must not overwrite',
+        category: 'Unused root/Unused child',
+        tags: ['Unused tag'],
+      })),
+    });
+    assert.equal(rerun.created, 0);
+    assert.equal(rerun.skipped, 2);
+    assert.deepEqual(
+      await request('GET', `/resources/${imported.results[0].resourceId}`),
+      preserved,
+    );
+    assert(
+      !(await request('GET', '/categories')).some(
+        (category: { name: string }) => category.name.startsWith('Unused'),
+      ),
+    );
+    assert(
+      !(await request('GET', '/tags')).some(
+        (tag: { name: string }) => tag.name === 'Unused tag',
+      ),
+    );
+    const existingPreview = await request('POST', '/import/preview', {
+      files: [
+        {
+          name: 'again.md',
+          text: '- [Again](https://import.example/a#fragment)',
+        },
+      ],
+    });
+    assert.equal(existingPreview.candidates[0].included, false);
+    assert.equal(existingPreview.candidates[0].existing.length, 1);
+
+    const beforeRollback = (await request('GET', '/resources')).total;
+    await isolated.pool.query(
+      "CREATE FUNCTION reject_import_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.url = 'https://rollback.example/two' THEN RAISE EXCEPTION 'Injected storage failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_import_test BEFORE INSERT ON resources FOR EACH ROW EXECUTE FUNCTION reject_import_test()",
+    );
+    const rollback = await request(
+      'POST',
+      '/import/apply',
+      {
+        entries: [
+          {
+            ...entries[0],
+            id: 'rollback-one',
+            url: 'https://rollback.example/one',
+            category: 'Rollback root/Child',
+            tags: ['Rollback tag'],
+          },
+          {
+            ...entries[1],
+            id: 'rollback-two',
+            url: 'https://rollback.example/two',
+            category: 'Rollback root/Child',
+            tags: [],
+          },
+        ],
+      },
+      422,
+    );
+    assert.equal(rollback.error.entry_id, 'rollback-two');
+    assert.equal(rollback.error.rolled_back, true);
+    assert.equal((await request('GET', '/resources')).total, beforeRollback);
+    assert(
+      !(await request('GET', '/categories')).some(
+        (category: { name: string }) => category.name === 'Rollback root',
+      ),
+    );
+    assert(
+      !(await request('GET', '/tags')).some(
+        (tag: { name: string }) => tag.name === 'Rollback tag',
+      ),
+    );
+    await isolated.pool.query(
+      'DROP TRIGGER reject_import_test ON resources; DROP FUNCTION reject_import_test()',
+    );
+    const concurrentPayload = {
+      entries: [
+        {
+          ...entries[0],
+          id: 'concurrent-import',
+          url: 'https://import-race.example',
+        },
+      ],
+    };
+    const concurrentImports = await Promise.all([
+      request('POST', '/import/apply', concurrentPayload),
+      request('POST', '/import/apply', concurrentPayload),
+    ]);
+    assert.equal(
+      concurrentImports.reduce((total, result) => total + result.created, 0),
+      1,
+    );
+    assert.equal(
+      concurrentImports.reduce((total, result) => total + result.skipped, 0),
+      1,
+    );
+    await request(
+      'POST',
+      '/import/apply',
+      { entries: [{ ...entries[0], reviewed: false }] },
+      422,
+    );
+    await request(
+      'POST',
+      '/import/preview',
+      { files: [{ name: '../bad.md', text: '' }] },
+      422,
+    );
+    await request(
+      'POST',
+      '/import/preview',
+      { files: [{ name: 'large.md', text: 'x'.repeat(256 * 1024 + 1) }] },
+      413,
+    );
+
+    const ci = await request('POST', '/import/apply', {
+      entries: [
+        {
+          ...entries[0],
+          id: 'ci-import',
+          url: 'https://ci-import.example',
+          category: 'Infrastructure/CI/CD',
+        },
+      ],
+    });
+    assert.equal(ci.created, 1);
+    const ciEntry = await request(
+      'GET',
+      `/resources/${ci.results[0].resourceId}`,
+    );
+    assert.equal(ciEntry.category.name, 'CI/CD');
+    const categoryCount = (await request('GET', '/categories')).length;
+    await request('POST', '/import/apply', {
+      entries: [
+        {
+          ...entries[0],
+          id: 'ci-case',
+          url: 'https://ci-case.example',
+          category: 'infrastructure/ci/cd',
+        },
+      ],
+    });
+    assert.equal((await request('GET', '/categories')).length, categoryCount);
   } finally {
     const httpServer = server;
     if (httpServer)

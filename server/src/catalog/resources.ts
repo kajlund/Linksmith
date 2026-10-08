@@ -1,5 +1,5 @@
 import { and, count, eq, getTableColumns, inArray, ne, sql } from 'drizzle-orm';
-import type { Database, Executor } from '../db/database.js';
+import type { Database, Executor, Transaction } from '../db/database.js';
 import {
   type Category,
   categories,
@@ -106,91 +106,90 @@ export async function saveResource(
   normalized: ReturnType<typeof normalizeURL>,
   id?: string,
 ) {
-  return db.transaction(async (tx) => {
-    // URL-based locking still serializes duplicate checks independently of row IDs.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${normalized.normalized_url}, 0))`,
-    );
-    let previous: string | undefined;
-    if (id !== undefined) {
-      const [row] = await tx
-        .select({ normalized: resources.normalized_url })
-        .from(resources)
-        .where(eq(resources.id, id))
-        .for('update');
-      if (!row) notFound();
-      previous = row.normalized;
-    }
-    if (
-      previous !== normalized.normalized_url &&
-      !input.acknowledge_duplicate
-    ) {
-      const existing = await resourceQuery(tx)
-        .where(
-          and(
-            eq(resources.normalized_url, normalized.normalized_url),
-            id === undefined ? undefined : ne(resources.id, id),
-          ),
-        )
-        .orderBy(resources.id)
-        .limit(10);
-      if (existing.length)
-        throw new APIError(
-          409,
-          'duplicate',
-          'This URL already exists. Open the existing entry, or acknowledge to save another copy.',
-          { existing },
-        );
-    }
-    if (input.category_id !== null) {
-      const matches = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(eq(categories.id, input.category_id));
-      if (!matches.length)
-        invalid({ category_id: 'Category no longer exists' });
-    }
-    if (input.tag_ids.length) {
-      const matches = await tx
-        .select({ id: tags.id })
-        .from(tags)
-        .where(inArray(tags.id, input.tag_ids));
-      if (matches.length !== input.tag_ids.length)
-        invalid({ tag_ids: 'A tag no longer exists' });
-    }
-    const {
-      tag_ids,
-      acknowledge_duplicate: _acknowledgment,
-      ...values
-    } = input;
-    const data = {
-      ...values,
-      normalized_url: normalized.normalized_url,
-      domain: normalized.domain,
-    };
-    if (id === undefined) {
-      const [created] = await tx
-        .insert(resources)
-        .values(data)
-        .returning({ id: resources.id });
-      id = created.id;
-    } else {
-      await tx
-        .update(resources)
-        .set({ ...data, updated_at: sql`now()` })
-        .where(eq(resources.id, id));
-    }
-    const resourceID = id;
-    await tx
-      .delete(resourceTags)
-      .where(eq(resourceTags.resource_id, resourceID));
-    if (tag_ids.length)
-      await tx
-        .insert(resourceTags)
-        .values(tag_ids.map((tag_id) => ({ resource_id: resourceID, tag_id })));
+  return db.transaction((tx) =>
+    saveResourceInTransaction(tx, input, normalized, id),
+  );
+}
 
-    return getResource(tx, id);
-  });
+export async function saveResourceInTransaction(
+  tx: Transaction,
+  input: ResourceInput,
+  normalized: ReturnType<typeof normalizeURL>,
+  id?: string,
+) {
+  // URL-based locking still serializes duplicate checks independently of row IDs.
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${normalized.normalized_url}, 0))`,
+  );
+  let previous: string | undefined;
+  if (id !== undefined) {
+    const [row] = await tx
+      .select({ normalized: resources.normalized_url })
+      .from(resources)
+      .where(eq(resources.id, id))
+      .for('update');
+    if (!row) notFound();
+    previous = row.normalized;
+  }
+  if (previous !== normalized.normalized_url && !input.acknowledge_duplicate) {
+    const existing = await resourceQuery(tx)
+      .where(
+        and(
+          eq(resources.normalized_url, normalized.normalized_url),
+          id === undefined ? undefined : ne(resources.id, id),
+        ),
+      )
+      .orderBy(resources.id)
+      .limit(10);
+    if (existing.length)
+      throw new APIError(
+        409,
+        'duplicate',
+        'This URL already exists. Open the existing entry, or acknowledge to save another copy.',
+        { existing },
+      );
+  }
+  if (input.category_id !== null) {
+    const matches = await tx
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.id, input.category_id));
+    if (!matches.length) invalid({ category_id: 'Category no longer exists' });
+  }
+  if (input.tag_ids.length) {
+    const matches = await tx
+      .select({ id: tags.id })
+      .from(tags)
+      .where(inArray(tags.id, input.tag_ids));
+    if (matches.length !== input.tag_ids.length)
+      invalid({ tag_ids: 'A tag no longer exists' });
+  }
+  const { tag_ids, acknowledge_duplicate: _acknowledgment, ...values } = input;
+  const data = {
+    ...values,
+    normalized_url: normalized.normalized_url,
+    domain: normalized.domain,
+  };
+  if (id === undefined) {
+    const [created] = await tx
+      .insert(resources)
+      .values(data)
+      .returning({ id: resources.id });
+    id = created.id;
+  } else {
+    await tx
+      .update(resources)
+      .set({ ...data, updated_at: sql`now()` })
+      .where(eq(resources.id, id));
+  }
+  const resourceID = id;
+  await tx.delete(resourceTags).where(eq(resourceTags.resource_id, resourceID));
+  if (tag_ids.length)
+    await tx
+      .insert(resourceTags)
+      .values(tag_ids.map((tag_id) => ({ resource_id: resourceID, tag_id })));
+
+  return getResource(tx, id);
 }
 
 export async function setFavorite(db: Database, id: string, favorite: boolean) {

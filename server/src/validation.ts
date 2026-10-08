@@ -9,6 +9,7 @@ type FieldType =
   | 'integer'
   | 'nullableInteger'
   | 'nullableString'
+  | 'objectArray'
   | 'stringArray';
 
 export const isUUID = (value: string) =>
@@ -49,10 +50,18 @@ export async function readBody(
         ? typeof value === 'string'
         : type === 'boolean'
           ? typeof value === 'boolean'
-          : type === 'stringArray'
+          : type === 'objectArray'
             ? Array.isArray(value) &&
-              value.every((item) => typeof item === 'string')
-            : Number.isSafeInteger(value);
+              value.every(
+                (item) =>
+                  item !== null &&
+                  typeof item === 'object' &&
+                  !Array.isArray(item),
+              )
+            : type === 'stringArray'
+              ? Array.isArray(value) &&
+                value.every((item) => typeof item === 'string')
+              : Number.isSafeInteger(value);
     if (!valid)
       throw new APIError(
         400,
@@ -216,6 +225,10 @@ const resourceFields: Record<keyof ResourceInput, FieldType> = {
 
 export async function readResource(c: Context) {
   const body = await readBody(c, resourceFields);
+  return validateResource(body);
+}
+
+export function validateResource(body: Record<string, unknown>) {
   const input: ResourceInput = {
     url: '',
     name: '',

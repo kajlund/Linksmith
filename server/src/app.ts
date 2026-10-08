@@ -4,6 +4,7 @@ import { bodyLimit } from 'hono/body-limit';
 import type { Logger } from 'pino';
 import type { Database } from './db/database.js';
 import { APIError, databaseCode, databaseError } from './errors.js';
+import { importRoutes } from './import/routes.js';
 import { apiRoutes } from './routes.js';
 import { clientRoutes } from './static.js';
 
@@ -73,7 +74,26 @@ export function createApp(
       ),
   });
 
-  app.use('/api/*', limit);
+  const importLimit = bodyLimit({
+    maxSize: 2 * 1024 * 1024,
+    onError: (c) =>
+      c.json(
+        {
+          error: {
+            code: 'import_limits',
+            message: 'Import request exceeds 2 MiB',
+          },
+        },
+        413,
+      ),
+  });
+  app.use('/api/*', (c, next) =>
+    c.req.path.startsWith('/api/import/')
+      ? importLimit(c, next)
+      : limit(c, next),
+  );
+
+  app.route('/api/import', importRoutes(db));
 
   app.route('/api', apiRoutes(db));
 

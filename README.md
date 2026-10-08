@@ -2,7 +2,7 @@
 
 A single-user resource notebook built with **Node.js, Hono, Drizzle ORM, PostgreSQL, Lit, and TypeScript**. Capture with only a URL, browse a two-level category tree, combine search and tag filters, and edit entries through a compact dialog.
 
-Resources, categories, tags, ratings, favorites, pricing, private notes, and keywords are included. Imports, exports, authentication, metadata fetching, and dashboards remain outside this version. There is **no authentication**: keep access restricted to your trusted LAN behind your reverse proxy.
+Resources, categories, tags, ratings, favorites, pricing, private notes, and keywords are included. Markdown import with a reviewable preview is included. Exports, authentication, metadata fetching, and dashboards remain outside this version. There is **no authentication**: keep access restricted to your trusted LAN behind your reverse proxy.
 
 ## Structure and prerequisites
 
@@ -12,6 +12,8 @@ Resources, categories, tags, ratings, favorites, pricing, private notes, and key
 - `server/src/db/schema.ts`: typed Drizzle schema matching the existing database.
 - `server/src/db/migrations.ts`, `server/migrations`: explicit SQL migration runner/files.
 - `server/src/config.ts`, `logger.ts`: dotenv configuration and Pino logging.
+- `server/src/import`: Markdown parser, editable mapping suggestions, preview and atomic batch apply.
+- `client/src/import.ts`: bounded import preview and review controls.
 - `server/test`: Node's built-in tests and optional PostgreSQL integration tests.
 - `client/src`: existing Lit frontend, API types, and semantic theme tokens.
 - [API contract](docs/API.md) and [verification record](docs/VERIFICATION.md).
@@ -90,9 +92,24 @@ npm start --prefix server
 
 The migration locks the catalog tables and converts IDs atomically. A failure rolls back the upgrade; rerunning after success skips it and keeps the assigned UUIDs. Fresh databases apply both migrations. The existing npm migration script already discovers numbered SQL files; no additional script is needed. With compiled production code, use `npm run migrate:production --prefix server` after building the server.
 
-IDs change once during this upgrade. Previously saved integer resource links and category/tag filter URLs no longer identify entries; reopen the app and clear old filters. External clients must send UUID strings. Imports/exports are not implemented by this migration. Start the updated server with the rebuilt client after migration; readiness requires the UUID migration.
+IDs change once during this upgrade. Previously saved integer resource links and category/tag filter URLs no longer identify entries; reopen the app and clear old filters. External clients must send UUID strings. The UUID migration itself does not import or export data. Start the updated server with the rebuilt client after migration; readiness requires the UUID migration.
 
 ## Development
+
+Root npm commands forward to the client/server packages:
+
+| Command | Action |
+| --- | --- |
+| `npm start` | Start the compiled server, serving `client/dist` too |
+| `npm run dev` | Start the server with automatic restart |
+| `npm run dev:client` | Start the Vite development client in another terminal |
+| `npm run build` | Build both client and server |
+| `npm run migrate` | Apply pending migrations using the root `.env` |
+| `npm run migrate:production` | Apply migrations using the compiled server |
+| `npm run check` | Type-check both packages |
+| `npm test` | Run server tests |
+
+For one server serving the built client, run `npm run build` once, then `npm start`. Open **http://127.0.0.1:8080** (unless you changed `BIND_ADDR`). For server development with the built client, use `npm run dev`. These commands still load the repository-root `.env`; migrations remain explicit.
 
 Use two terminals from the repository root:
 
@@ -137,6 +154,32 @@ Alphabetical display title is the default sort. Rating order puts unrated last; 
 Duplicate detection trims the entered URL for storage and computes a conservative key: lower-case scheme/host, omit default ports, turn an empty root path into `/`, and ignore fragments. It preserves path case, dot segments, query content/order, trailing path slashes, and HTTP versus HTTPS. Valid ASCII path escapes are retained; literal Unicode/unsafe path characters use the previous server's canonical escaping so existing keys match. Credentials/whitespace in URLs are rejected. Warnings show existing entries and allow editing them or explicitly acknowledging another copy. Unchanged normalized URLs on edit do not warn again. The API enforces acknowledgment and serializes concurrent duplicate creates.
 
 Deleting categories with children/resources is rejected; move/reassign them first. Deleting a tag removes associations after confirmation and keeps resources. Descriptions/notes render safely as plain text with line breaks. Light/dark themes follow the system initially and persist explicit choices.
+
+## Import Markdown
+
+Click **Import Markdown** beside Add resource. Select one or several resource-list `.md` files; other Markdown documents can be left out. A file without extractable HTTP/HTTPS links shows zero candidates. Source files are read in your browser and stay untouched. No import runs at startup.
+
+1. Inspect file counts, heading groups, warnings, duplicates, and unmapped entries. Preview performs parsing and a database lookup only. Source excerpts and parent-list context are available under **Original source**; front matter is context only.
+2. Use **Review & edit** to change name, entered URL, description, notes, category, tags, and inclusion. Warnings default to excluded. Checking Include confirms your review; **Done reviewing** marks review without forcing selection. Clear candidates may start selected. Blank category is intentional uncategorized storage.
+3. Choose an existing category path/tag from suggestions or propose new names. Category paths are `Root/Child`; only the first slash separates levels, so `Infrastructure/CI/CD` creates the child `CI/CD`. Existing paths match case-insensitively and are never renamed. The group mapping panel applies category and adds tags to **all filtered entries across pages**. Review and selection are separate.
+4. Preview pages contain 25 entries. Selection persists across pages. Select reviewed selects all reviewed, nonexisting entries in the filtered group; warning entries need individual review first. Deselect affects the whole filtered group. Inspect proposed new categories/tags before import.
+5. For multiple links in one source, either review and include each separately, or use **Use as primary** to keep the shared source and other URLs in notes while deselecting the others. Check attribution before import, especially provider sections and historical tables. No price, rating, favorite, or current-status inference occurs.
+6. Click **Import selected**. Successful results show created/skipped/failed totals and resource IDs. Invalid entries roll back the batch, highlight the problematic entry, and retain your edits and selection. After an interrupted response, retry safely: existing URLs are skipped. Back to notebook closes the preview; it is not stored across navigation or reload.
+
+Within-file and cross-file normalized duplicates are grouped with every source occurrence retained. Different paths, HTTP versus HTTPS, and meaningful queries stay distinct. Existing catalog matches default to Skip, and apply rechecks every normalized URL against current data. Imports never overwrite existing entries and never use the ordinary duplicate override. Imports serialize taxonomy resolution and acquire the same URL locks as normal saves, in sorted order. Each selected batch commits resources, associations, and only needed taxonomy together; duplicate-only runs create no taxonomy.
+
+Limits: 20 files, 256 KiB each, 1 MiB total Markdown, 1000 HTTP(S) link occurrences, 4 MiB extracted preview text, 500 selected entries per batch, and 2 MiB JSON per import request. Existing resource text/name/tag limits also apply. Split large selections if the request limit is reached. Code, images, front matter, non-HTTP targets, raw HTML, and malformed/unresolved links are explained in Excluded content; raw HTML links are not extracted. No remote websites are fetched.
+
+Suggestions live in [server/src/import/mappings.ts](server/src/import/mappings.ts). It contains filename/heading mappings and a short override list for the five sample names. Edit it and restart/rebuild the server to change defaults; group mappings and individual edits can always override them. Unknown files default to unmapped. Do not place personal source collections in the repository unnecessarily: choose them from any folder, such as `C:\Users\Kaj\Documents\Blog`. Samples were checked read-only from that folder; nothing from it was copied into the repository. The parser uses [remark-parse](https://github.com/remarkjs/remark/tree/main/packages/remark-parse), GFM tables/reference support, and frontmatter syntax support.
+
+This feature needs updated server dependencies and builds, but no new database migration:
+
+```sh
+npm ci --prefix server
+npm run build --prefix server
+npm run build --prefix client
+npm start --prefix server
+```
 
 ## Verification
 

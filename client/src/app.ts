@@ -10,6 +10,7 @@ import {
   type Tag,
 } from './api';
 import './style.css';
+import './import';
 
 const paths: Record<string, string> = {
   plus: 'M12 5v14M5 12h14',
@@ -59,6 +60,7 @@ const blank = (category: string | null): ResourceInput => ({
 class LinksmithApp extends LitElement {
   static properties = Object.fromEntries(
     [
+      'importOpen',
       'categories',
       'tags',
       'items',
@@ -92,6 +94,8 @@ class LinksmithApp extends LitElement {
       'theme',
     ].map((k) => [k, { state: true }]),
   );
+
+  importOpen = false;
 
   categories: Category[] = [];
   tags: Tag[] = [];
@@ -650,6 +654,13 @@ class LinksmithApp extends LitElement {
   }
 
   render() {
+    if (this.importOpen)
+      return html`<main class="import-shell"><button class="quiet" @click=${() => {
+        this.importOpen = false;
+      }}>← Back to notebook</button><linksmith-import .categories=${this.categories} .tags=${this.tags} @import-complete=${async () => {
+        await this.taxonomy();
+        await this.load();
+      }}></linksmith-import></main>`;
     const title =
       this.category !== null
         ? this.categoryLabel(this.category)
@@ -664,8 +675,10 @@ class LinksmithApp extends LitElement {
       this.favorite ||
       this.inbox ||
       this.selectedTags.length;
-    return html`<div class="app-shell"><aside class="sidebar"><a class="brand" href="/">${icon('book')} Linksmith</a><p class="brand-caption">A personal resource notebook</p>${this.nav()}<label class="theme-select">${icon('moon')}<span>Theme</span><select aria-label="Theme" .value=${this.theme} @change=${this.setTheme}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></aside>
-      <main><header class="main-header"><div><button class="mobile-menu icon-button" aria-label="Open navigation" @click=${() => this.show('nav-dialog')}>${icon('menu')}</button><p class="eyebrow">Your notebook</p><h1>${title}</h1>${this.category !== null && this.categories.some((c) => c.parent_id === this.category) ? html`<p class="muted small">Includes this category and its children</p>` : nothing}</div><button class="primary add-resource" @click=${() => this.openForm()}>${icon('plus')} Add resource</button></header>
+    return html`<div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><img src="/favicon.svg" width="28" height="28" alt="" /> Linksmith</a><p class="brand-caption">A personal resource notebook</p>${this.nav()}<label class="theme-select">${icon('moon')}<span>Theme</span><select aria-label="Theme" .value=${this.theme} @change=${this.setTheme}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></aside>
+      <main><header class="main-header"><div><button class="mobile-menu icon-button" aria-label="Open navigation" @click=${() => this.show('nav-dialog')}>${icon('menu')}</button><p class="eyebrow">Your notebook</p><h1>${title}</h1>${this.category !== null && this.categories.some((c) => c.parent_id === this.category) ? html`<p class="muted small">Includes this category and its children</p>` : nothing}</div><button class="quiet" @click=${() => {
+        this.importOpen = true;
+      }}>Import Markdown</button><button class="primary add-resource" @click=${() => this.openForm()}>${icon('plus')} Add resource</button></header>
       <div class="toolbar"><label class="search">${icon('search')}<input type="search" aria-label="Search resources" placeholder="Search your notebook…" maxlength="200" .value=${this.query} @input=${(
         e: Event,
       ) => {
@@ -759,7 +772,7 @@ class LinksmithApp extends LitElement {
       </section><footer class="notebook-footer">A place for things worth remembering.</footer></main></div>
       ${this.resourceDialog()}${this.manageDialog()}
       <dialog id="delete-dialog" class="small-dialog" aria-labelledby="delete-heading" @cancel=${this.cancel}><h2 id="delete-heading">Delete ${this.confirmation?.kind === 'resources' ? 'resource' : this.confirmation?.kind === 'tags' ? 'tag' : 'category'}?</h2><p class="plain">${this.confirmation?.name}</p><p class="muted">${this.confirmation?.kind === 'tags' ? 'This removes the tag from all resources. Resources will be kept.' : 'This cannot be undone.'}</p>${this.deleteError ? html`<p class="error" role="alert">${this.deleteError}</p>` : nothing}<footer class="dialog-footer"><button autofocus ?disabled=${this.deleting} @click=${() => this.close('delete-dialog')}>Cancel</button><button class="danger" ?disabled=${this.deleting} @click=${this.deleteConfirmed}>${this.deleting ? 'Deleting…' : 'Delete'}</button></footer></dialog>
-      <dialog id="nav-dialog" class="drawer" aria-label="Navigation"><header class="dialog-header"><span class="brand">${icon('book')} Linksmith</span><button autofocus class="icon-button" aria-label="Close navigation" @click=${() => this.close('nav-dialog')}>${icon('close')}</button></header><div @click=${(
+      <dialog id="nav-dialog" class="drawer" aria-label="Navigation"><header class="dialog-header"><span class="brand"><img src="/favicon.svg" width="28" height="28" alt="" /> Linksmith</span><button autofocus class="icon-button" aria-label="Close navigation" @click=${() => this.close('nav-dialog')}>${icon('close')}</button></header><div @click=${(
         e: Event,
       ) => {
         if ((e.target as HTMLElement).closest('button.nav'))
