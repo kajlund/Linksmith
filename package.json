@@ -1,6 +1,19 @@
 {
+  "name": "linksmith",
   "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
+    "start": "npm start --workspace=server",
+    "dev": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=client && npm run build --workspace=server",
+    "migrate": "npm run migrate --workspace=server",
+    "migrate:production": "npm run migrate:production --workspace=server",
+    "check": "npm run check --workspace=client && npm run check --workspace=server",
+    "test": "npm test --workspace=server",
     "biome": "biome check .",
     "biome:fix": "biome check --write ."
   },
