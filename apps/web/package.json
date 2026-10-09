@@ -1,5 +1,5 @@
 {
-  "name": "linksmith-client",
+  "name": "@linksmith/web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "check": "tsc --noEmit",
-    "build": "npm run check && vite build"
+    "build": "npm run check && vite build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "lit": "3.3.3"

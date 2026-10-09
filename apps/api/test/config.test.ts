@@ -3,7 +3,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { loadEnvironment, readConfig } from '../src/config.js';
+import { fileURLToPath } from 'node:url';
+import { defaultEnvFile, loadEnvironment, readConfig } from '../src/config.js';
 
 test('dotenv loads explicitly selected files without overriding shell variables', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'linksmith-env-'));
@@ -56,4 +57,16 @@ test('dotenv loads explicitly selected files without overriding shell variables'
     }
     await rm(dir, { recursive: true });
   }
+});
+
+test('workspace paths resolve the root environment and sibling web build', () => {
+  assert.equal(
+    defaultEnvFile,
+    fileURLToPath(new URL('../../../.env', import.meta.url)),
+  );
+  assert.equal(
+    readConfig({ DATABASE_URL: 'postgres://localhost/catalog' })
+      .clientDirectory,
+    fileURLToPath(new URL('../../web/dist', import.meta.url)),
+  );
 });

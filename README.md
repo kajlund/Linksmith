@@ -6,21 +6,21 @@ Resources, categories, tags, ratings, favorites, pricing, private notes, and key
 
 ## Structure and prerequisites
 
-- `server/src/index.ts`: Node HTTP server and graceful shutdown.
-- `server/src/app.ts`, `routes.ts`: Hono middleware, API routes, and errors.
-- `server/src/catalog`: Drizzle queries and catalog operations.
-- `server/src/db/schema.ts`: typed Drizzle schema matching the existing database.
-- `server/src/db/migrations.ts`, `server/migrations`: explicit SQL migration runner/files.
-- `server/src/config.ts`, `logger.ts`: dotenv configuration and Pino logging.
-- `server/src/import`: Markdown parser, editable mapping suggestions, preview and atomic batch apply.
-- `client/src/import.ts`: bounded import preview and review controls.
-- `server/test`: Node's built-in tests and optional PostgreSQL integration tests.
-- `client/src`: existing Lit frontend, API types, and semantic theme tokens.
+- `apps/api/src/index.ts`: Node HTTP server and graceful shutdown.
+- `apps/api/src/app.ts`, `routes.ts`: Hono middleware, API routes, and errors.
+- `apps/api/src/catalog`: Drizzle queries and catalog operations.
+- `apps/api/src/db/schema.ts`: typed Drizzle schema matching the existing database.
+- `apps/api/src/db/migrations.ts`, `apps/api/migrations`: explicit SQL migration runner/files.
+- `apps/api/src/config.ts`, `logger.ts`: dotenv configuration and Pino logging.
+- `apps/api/src/import`: Markdown parser, editable mapping suggestions, preview and atomic batch apply.
+- `apps/web/src/import.ts`: bounded import preview and review controls.
+- `apps/api/test`: Node's built-in tests and optional PostgreSQL integration tests.
+- `apps/web/src`: existing Lit frontend, API types, and semantic theme tokens.
 - [API contract](docs/API.md) and [verification record](docs/VERIFICATION.md).
 
 Use **Node.js 22.12+** (Node 24 recommended), npm, and PostgreSQL **14+**. Docker and Go are not required. PostgreSQL can run on your home server; `psql` is useful for initial administration.
 
-Versions checked against registries and pinned: Hono 4.13.13, `@hono/node-server` 2.1.3, Drizzle ORM 0.45.3, `pg` 8.23.1, dotenv 18.0.6, Pino 10.4.0, pino-pretty 13.2.0, tsx 4.23.15, and TypeScript 7.0.2. The client retains Lit 3.3.3 and Vite 8.3.3. Both directories have `package-lock.json`; use `npm ci` for reproducible installs.
+Versions checked against registries and pinned: Hono 4.13.13, `@hono/node-server` 2.1.3, Drizzle ORM 0.45.3, `pg` 8.23.1, dotenv 18.0.6, Pino 10.4.0, pino-pretty 13.2.0, tsx 4.23.15, and TypeScript 7.0.2. The client retains Lit 3.3.3 and Vite 8.3.3. The root `package-lock.json` covers all workspaces; run `npm ci` from the repository root for reproducible installs.
 
 ## Moving from Go
 
@@ -60,7 +60,7 @@ dotenv automatically loads this **repository-root `.env`**, independently of the
 | --- | --- | --- |
 | `DATABASE_URL` | Required | PostgreSQL connection URL |
 | `BIND_ADDR` | `127.0.0.1:8080` | HTTP host:port; IPv6 uses `[::1]:8080` |
-| `CLIENT_DIR` | `../client/dist` | Client build; relative paths resolve from `server/` |
+| `CLIENT_DIR` | `../web/dist` | Client build; relative paths resolve from `apps/api/` |
 | `ENV_FILE` | Repository-root `.env` | Alternative dotenv file |
 | `NODE_ENV` | Development behavior | Set `production` for deployment |
 | `LOG_LEVEL` | `info` | Pino level, e.g. debug/info/warn/error |
@@ -72,9 +72,8 @@ dotenv automatically loads this **repository-root `.env`**, independently of the
 From the repository root, in PowerShell or Ubuntu:
 
 ```sh
-npm ci --prefix server
-npm ci --prefix client
-npm run migrate --prefix server
+npm ci
+npm run migrate -w @linksmith/api
 ```
 
 Migrations apply unapplied SQL files in filename order inside one transaction, with a PostgreSQL advisory lock to serialize runs. Repeating the command is safe. Keep applied migrations unchanged and add a numbered file for schema changes. Back up before upgrades; there is no automatic down-migration.
@@ -84,44 +83,45 @@ Migrations apply unapplied SQL files in filename order inside one transaction, w
 Stop the server and make a PostgreSQL backup before running the upgrade. From the repository root:
 
 ```sh
-npm run migrate --prefix server
-npm run build --prefix server
-npm run build --prefix client
-npm start --prefix server
+npm run migrate -w @linksmith/api
+npm run build -w @linksmith/api
+npm run build -w @linksmith/web
+npm start -w @linksmith/api
 ```
 
-The migration locks the catalog tables and converts IDs atomically. A failure rolls back the upgrade; rerunning after success skips it and keeps the assigned UUIDs. Fresh databases apply both migrations. The existing npm migration script already discovers numbered SQL files; no additional script is needed. With compiled production code, use `npm run migrate:production --prefix server` after building the server.
+The migration locks the catalog tables and converts IDs atomically. A failure rolls back the upgrade; rerunning after success skips it and keeps the assigned UUIDs. Fresh databases apply both migrations. The existing npm migration script already discovers numbered SQL files; no additional script is needed. With compiled production code, use `npm run migrate:production -w @linksmith/api` after building the server.
 
 IDs change once during this upgrade. Previously saved integer resource links and category/tag filter URLs no longer identify entries; reopen the app and clear old filters. External clients must send UUID strings. The UUID migration itself does not import or export data. Start the updated server with the rebuilt client after migration; readiness requires the UUID migration.
 
 ## Development
 
-Root npm commands forward to the client/server packages:
+Root npm commands forward to the apps/web/server packages:
 
 | Command | Action |
 | --- | --- |
-| `npm start` | Start the compiled server, serving `client/dist` too |
-| `npm run dev` | Start the server with automatic restart |
-| `npm run dev:client` | Start the Vite development client in another terminal |
+| `npm start` | Start the compiled server, serving `apps/web/dist` too |
+| `npm run dev` | Start the API with automatic restart and the Vite web app |
+| `npm run dev:api` | Start only the API with automatic restart |
+| `npm run dev:web` | Start the Vite development client in another terminal |
 | `npm run build` | Build both client and server |
 | `npm run migrate` | Apply pending migrations using the root `.env` |
 | `npm run migrate:production` | Apply migrations using the compiled server |
 | `npm run check` | Type-check both packages |
 | `npm test` | Run server tests |
 
-For one server serving the built client, run `npm run build` once, then `npm start`. Open **http://127.0.0.1:8080** (unless you changed `BIND_ADDR`). For server development with the built client, use `npm run dev`. These commands still load the repository-root `.env`; migrations remain explicit.
+For one server serving the built client, run `npm run build` once, then `npm start`. Open **http://127.0.0.1:8080** (unless you changed `BIND_ADDR`). For server development with the built client, use `npm run dev:api`. These commands still load the repository-root `.env`; migrations remain explicit.
 
 Use two terminals from the repository root:
 
 ```sh
 # Terminal 1: API with automatic restart and pretty logging
-npm run dev --prefix server
+npm run dev -w @linksmith/api
 
 # Terminal 2: Vite client
-npm run dev --prefix client
+npm run dev -w @linksmith/web
 ```
 
-Open **http://127.0.0.1:5173**. Vite proxies `/api` to `http://127.0.0.1:8080`; keep that address for development or update `client/vite.config.ts`. The API runs without a built frontend; direct requests for a missing client return a helpful 503.
+Open **http://127.0.0.1:5173**. Vite proxies `/api` to `http://127.0.0.1:8080`; keep that address for development or update `apps/web/vite.config.ts`. The API runs without a built frontend; direct requests for a missing client return a helpful 503.
 
 Pino logs request ID, method, path, status, and duration. Request bodies, query strings, connection URLs, and private notes are not logged. Unexpected database failures record SQLSTATE/request context without exposing SQL/parameters to clients.
 
@@ -130,16 +130,16 @@ Pino logs request ID, method, path, status, and duration. Request bodies, query 
 From the repository root:
 
 ```sh
-npm run build --prefix client
-npm run build --prefix server
-npm start --prefix server
+npm run build -w @linksmith/web
+npm run build -w @linksmith/api
+npm start -w @linksmith/api
 ```
 
 Open **http://127.0.0.1:8080**. Set `NODE_ENV=production` in your service environment or `.env` for JSON logging. pino-pretty is a development dependency, following [its production guidance](https://github.com/pinojs/pino-pretty); explicit pretty logging requires it to be installed.
 
 One Node process serves the API and client under the same origin with [Hono's Node HTTP/static adapter](https://hono.dev/docs/getting-started/nodejs), preserving your reverse-proxy setup without a separate frontend process or CORS configuration. The adapter streams real files and handles HEAD requests. Extensionless client routes fall back to `index.html`; unknown API routes and missing assets return errors rather than HTML.
 
-For production-only dependencies, deploy `server/dist`, `server/migrations`, the server package files, and `client/dist` in the same layout. Run `npm ci --omit=dev --prefix server`, set `NODE_ENV=production`, then `node server/dist/index.js`. Apply migrations separately with `node server/dist/migrate.js`. These compiled commands require no tsx, TypeScript, pino-pretty, or Go. SIGINT/SIGTERM close HTTP and database connections with a five-second shutdown deadline.
+For production-only dependencies, deploy the root `package.json` and `package-lock.json`, both workspace `package.json` files, `apps/api/dist`, `apps/api/migrations`, and `apps/web/dist` in the same layout. From the repository root, run `npm ci --omit=dev -w @linksmith/api`, set `NODE_ENV=production`, then `node apps/api/dist/index.js`. Apply migrations separately with `node apps/api/dist/migrate.js`. These compiled commands require no tsx, TypeScript, pino-pretty, or Go. SIGINT/SIGTERM close HTTP and database connections with a five-second shutdown deadline.
 
 ## First use
 
@@ -170,20 +170,20 @@ Within-file and cross-file normalized duplicates are grouped with every source o
 
 Limits: 20 files, 256 KiB each, 1 MiB total Markdown, 1000 HTTP(S) link occurrences, 4 MiB extracted preview text, 500 selected entries per batch, and 2 MiB JSON per import request. Existing resource text/name/tag limits also apply. Split large selections if the request limit is reached. Code, images, front matter, non-HTTP targets, raw HTML, and malformed/unresolved links are explained in Excluded content; raw HTML links are not extracted. No remote websites are fetched.
 
-Suggestions live in [server/src/import/mappings.ts](server/src/import/mappings.ts). It contains filename/heading mappings and a short override list for the five sample names. Edit it and restart/rebuild the server to change defaults; group mappings and individual edits can always override them. Unknown files default to unmapped. Do not place personal source collections in the repository unnecessarily: choose them from any folder, such as `C:\Users\Kaj\Documents\Blog`. Samples were checked read-only from that folder; nothing from it was copied into the repository. The parser uses [remark-parse](https://github.com/remarkjs/remark/tree/main/packages/remark-parse), GFM tables/reference support, and frontmatter syntax support.
+Suggestions live in [apps/api/src/import/mappings.ts](apps/api/src/import/mappings.ts). It contains filename/heading mappings and a short override list for the five sample names. Edit it and restart/rebuild the server to change defaults; group mappings and individual edits can always override them. Unknown files default to unmapped. Do not place personal source collections in the repository unnecessarily: choose them from any folder, such as `C:\Users\Kaj\Documents\Blog`. Samples were checked read-only from that folder; nothing from it was copied into the repository. The parser uses [remark-parse](https://github.com/remarkjs/remark/tree/main/packages/remark-parse), GFM tables/reference support, and frontmatter syntax support.
 
 This feature needs updated server dependencies and builds, but no new database migration:
 
 ```sh
-npm ci --prefix server
-npm run build --prefix server
-npm run build --prefix client
-npm start --prefix server
+npm ci
+npm run build -w @linksmith/api
+npm run build -w @linksmith/web
+npm start -w @linksmith/api
 ```
 
 ## Verification
 
-Run [Biome](https://biomejs.dev/reference/cli/) from the repository root to check formatting, lint rules, and imports across supported client/server source and configuration files:
+Run [Biome](https://biomejs.dev/reference/cli/) from the repository root to check formatting, lint rules, and imports across supported apps/web/server source and configuration files:
 
 ```sh
 npm ci
@@ -194,21 +194,21 @@ npm run biome:fix
 `biome:fix` applies safe fixes. Generated builds, dependencies, lockfiles, and temporary verification tooling are excluded by `biome.json`; Git ignore rules are respected. SQL and Markdown are outside Biome's supported checks. Formatting/lint findings cause the check command to exit unsuccessfully until addressed.
 
 ```sh
-npm run check --prefix server
-npm test --prefix server
-npm run build --prefix server
-npm run build --prefix client
+npm run check -w @linksmith/api
+npm test -w @linksmith/api
+npm run build -w @linksmith/api
+npm run build -w @linksmith/web
 ```
 
 Integration tests skip unless `TEST_DATABASE_URL` is explicitly set in the process environment. Tests do **not** load dotenv or use `DATABASE_URL`. Use a dedicated disposable database ending in `_test`; tests create a unique schema, migrate twice, run actual HTTP CRUD/filter/race checks, and drop only that schema.
 
 ```powershell
 $env:TEST_DATABASE_URL = 'postgres://TEST_USER:CHANGE_ME@YOUR_TEST_HOST:5432/linksmith_test?sslmode=disable'
-npm test --prefix server
+npm test -w @linksmith/api
 ```
 
 ```sh
-TEST_DATABASE_URL='postgres://TEST_USER:CHANGE_ME@YOUR_TEST_HOST:5432/linksmith_test?sslmode=disable' npm test --prefix server
+TEST_DATABASE_URL='postgres://TEST_USER:CHANGE_ME@YOUR_TEST_HOST:5432/linksmith_test?sslmode=disable' npm test -w @linksmith/api
 ```
 
 ## Ubuntu example behind Caddy
@@ -218,7 +218,7 @@ This is an example; no live deployment is performed. Install Node, copy/build th
 ```ini
 DATABASE_URL=postgres://linksmith:CHANGE_ME@YOUR_DATABASE_HOST:5432/linksmith?sslmode=disable
 BIND_ADDR=127.0.0.1:8080
-CLIENT_DIR=../client/dist
+CLIENT_DIR=../web/dist
 NODE_ENV=production
 LOG_LEVEL=info
 LOG_PRETTY=false
@@ -236,7 +236,7 @@ User=linksmith
 Group=linksmith
 WorkingDirectory=/opt/linksmith/server
 EnvironmentFile=/etc/linksmith.env
-ExecStart=/usr/bin/node /opt/linksmith/server/dist/index.js
+ExecStart=/usr/bin/node /opt/linksmith/apps/api/dist/index.js
 Restart=on-failure
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -254,7 +254,7 @@ sudo systemd-run --wait --pipe --collect --unit=linksmith-migrate \
   --property=User=linksmith --property=Group=linksmith \
   --property=WorkingDirectory=/opt/linksmith/server \
   --property=EnvironmentFile=/etc/linksmith.env \
-  /usr/bin/node /opt/linksmith/server/dist/migrate.js
+  /usr/bin/node /opt/linksmith/apps/api/dist/migrate.js
 sudo systemctl daemon-reload
 sudo systemctl enable --now linksmith
 sudo journalctl -u linksmith

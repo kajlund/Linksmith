@@ -4,11 +4,11 @@ import { config as dotenv } from 'dotenv';
 
 const serverDirectory = fileURLToPath(new URL('../', import.meta.url));
 export const defaultEnvFile = fileURLToPath(
-  new URL('../../.env', import.meta.url),
+  new URL('../../../.env', import.meta.url),
 );
 
 // Shell/service variables take precedence; the default file location is independent
-// of the working directory, including after compilation into server/dist.
+// of the working directory, including after compilation into apps/api/dist.
 
 export function loadEnvironment() {
   const result = dotenv({
@@ -61,10 +61,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     databaseURL: env.DATABASE_URL,
     hostname: match[1] ?? match[2],
     port: Number(match[3]),
-    clientDirectory: resolve(
-      serverDirectory,
-      env.CLIENT_DIR || '../client/dist',
-    ),
+    clientDirectory: resolve(serverDirectory, env.CLIENT_DIR || '../web/dist'),
     logLevel: env.LOG_LEVEL ?? 'info',
     pretty,
   };

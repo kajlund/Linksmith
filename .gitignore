@@ -5,18 +5,18 @@
 
 # Client dependencies and generated builds
 node_modules/
-/client/dist/
-/server/dist/
+/apps/web/dist/
+/apps/api/dist/
 *.tsbuildinfo
 
 # Legacy Go build outputs and test/coverage artifacts
-/server/linksmith
-/server/linksmith.exe
+/apps/api/linksmith
+/apps/api/linksmith.exe
 *.test
 *.test.exe
-/server/coverage.out
-/server/coverage.html
-/server/coverage/
+/apps/api/coverage.out
+/apps/api/coverage.html
+/apps/api/coverage/
 
 # Temporary verification tools, database data, and screenshots
 /.verification/

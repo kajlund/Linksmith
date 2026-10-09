@@ -44,7 +44,7 @@ test('PostgreSQL catalog CRUD, migration compatibility, filters, and concurrent 
     const app = createApp(
       isolated.db,
       pino({ enabled: false }),
-      fileURLToPath(new URL('../../client/dist', import.meta.url)),
+      fileURLToPath(new URL('../../web/dist', import.meta.url)),
     );
     const httpServer = serve({
       fetch: app.fetch,

@@ -1,5 +1,5 @@
 {
-  "name": "linksmith-server",
+  "name": "@linksmith/api",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,8 @@
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
     "migrate:production": "node dist/migrate.js",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "2.1.3",
