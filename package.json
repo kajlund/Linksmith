@@ -8,7 +8,7 @@
     "start": "npm start -w @linksmith/api",
     "dev": "concurrently --kill-others-on-fail -n api,web -c cyan,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:client": "npm run dev:web",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @linksmith/web && npm run build -w @linksmith/api",
     "migrate": "npm run migrate -w @linksmith/api",
     "migrate:production": "npm run migrate:production -w @linksmith/api",
     "check": "npm run typecheck",
@@ -17,7 +17,8 @@
     "biome:fix": "biome check --write .",
     "dev:api": "npm run dev -w @linksmith/api",
     "dev:web": "npm run dev -w @linksmith/web",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify:start": "node scripts/verify-start.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

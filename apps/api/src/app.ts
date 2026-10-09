@@ -65,6 +65,12 @@ export function createApp(
     );
   });
 
+  // Match the deployment probe used by the other apps. Database readiness
+  // remains available separately at /api/health.
+  app.get('/health', (c) =>
+    c.json({ status: 'OK', message: 'Linksmith API is running' }),
+  );
+
   const limit = bodyLimit({
     maxSize: 128 * 1024,
     onError: (c) =>

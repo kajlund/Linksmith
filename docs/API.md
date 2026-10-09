@@ -1,5 +1,10 @@
 # API contract
 
+Deployment liveness: `GET /health` (outside the `/api` base path) returns 200
+`{ "status": "OK", "message": "Linksmith API is running" }`. This matches the
+shared deployment probe and does not require database access or frontend files.
+Use `GET /api/health` for database and migration readiness.
+
 Base path: `/api`. Bodies use `Content-Type: application/json`. Unknown fields, wrong types, malformed JSON, and explicit nulls for non-nullable fields are rejected. Requests are limited to 128 KiB. Resource, category, and tag IDs are UUID strings. PUT replaces editable fields; omitted optional fields take defaults. Server-generated IDs/timestamps/domain/category/tag objects are read-only and must not be sent as input.
 
 Drizzle handles database operations and transactions. Migration `002_uuid_ids.sql` converts integer IDs and their references to UUIDs while retaining catalog data. UUID input accepts upper/lowercase hexadecimal and is normalized to lowercase; integer IDs are rejected. New IDs are PostgreSQL-generated random UUIDs. Responses include `X-Request-ID` for matching Pino request logs.

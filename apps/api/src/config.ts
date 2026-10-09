@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as dotenv } from 'dotenv';
 
@@ -61,7 +61,14 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     databaseURL: env.DATABASE_URL,
     hostname: match[1] ?? match[2],
     port: Number(match[3]),
-    clientDirectory: resolve(serverDirectory, env.CLIENT_DIR || '../web/dist'),
+    clientDirectory: resolve(
+      serverDirectory,
+      // Existing deployment environments may still use the pre-workspace default.
+      !env.CLIENT_DIR ||
+        normalize(env.CLIENT_DIR) === normalize('../client/dist')
+        ? '../web/dist'
+        : env.CLIENT_DIR,
+    ),
     logLevel: env.LOG_LEVEL ?? 'info',
     pretty,
   };

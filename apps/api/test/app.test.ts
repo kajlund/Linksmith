@@ -7,6 +7,31 @@ import pino from 'pino';
 import { createApp } from '../src/app.js';
 import { createDatabase } from '../src/db/database.js';
 
+test('deployment health works without frontend files or a reachable database', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'linksmith-health-'));
+  const { db, pool } = createDatabase(
+    'postgres://unused:unused@127.0.0.1:1/unused_test',
+  );
+  try {
+    const app = createApp(db, pino({ enabled: false }), dir);
+    const response = await app.request('/health');
+    assert.equal(response.status, 200);
+    assert.match(
+      response.headers.get('content-type') || '',
+      /application\/json/,
+    );
+    assert.deepEqual(await response.json(), {
+      status: 'OK',
+      message: 'Linksmith API is running',
+    });
+    assert.equal((await app.request('/')).status, 503);
+    assert.equal((await app.request('/api/health')).status, 503);
+  } finally {
+    await pool.end();
+    await rm(dir, { recursive: true });
+  }
+});
+
 test('production static serving and JSON errors cannot fall back to HTML', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'linksmith-static-'));
   const { db, pool } = createDatabase(

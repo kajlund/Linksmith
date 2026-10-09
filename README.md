@@ -108,8 +108,23 @@ Root npm commands forward to the apps/web/server packages:
 | `npm run migrate:production` | Apply migrations using the compiled server |
 | `npm run check` | Type-check both packages |
 | `npm test` | Run server tests |
+| `npm run verify:start` | Start the compiled app and check built pages/assets over HTTP using an unused local port and a dummy database URL |
 
 For one server serving the built client, run `npm run build` once, then `npm start`. Open **http://127.0.0.1:8080** (unless you changed `BIND_ADDR`). For server development with the built client, use `npm run dev:api`. These commands still load the repository-root `.env`; migrations remain explicit.
+
+Use the repository root for deployment commands, just like the other apps:
+
+```sh
+npm ci --include=dev
+npm run build
+npm start
+```
+
+The build needs development dependencies even when the deployment environment sets `NODE_ENV=production`. Start uses compiled JavaScript and needs only runtime dependencies. Keep `.env` at the repository root; on DreamQuest use `BIND_ADDR=127.0.0.1:5011`, `CLIENT_DIR=../web/dist`, and your existing `DATABASE_URL`. Set `NODE_ENV=production` for deployment. The old default `CLIENT_DIR=../client/dist` also resolves to the moved web build; other custom paths remain explicit. Services that launch Node directly must use `apps/api/dist/index.js` in the new layout.
+
+After building, `npm run verify:start` checks the actual root start command, bundled assets, frontend routing, and API error routing. It does not connect to your database. To check a separately assembled production-only deployment, run `npm run verify:start -- /path/to/deployment` from this checkout.
+
+The shared deploy script checks `/health`, which returns HTTP 200 JSON when the API process is running, matching Mise and Saywell. Database/migration readiness is checked separately at `/api/health` and returns 503 when unavailable. The startup smoke check verifies both endpoints.
 
 Use two terminals from the repository root:
 

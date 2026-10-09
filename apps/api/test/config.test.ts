@@ -70,3 +70,15 @@ test('workspace paths resolve the root environment and sibling web build', () =>
     fileURLToPath(new URL('../../web/dist', import.meta.url)),
   );
 });
+
+test('legacy frontend setting follows the move while custom paths stay explicit', () => {
+  const database = { DATABASE_URL: 'postgres://localhost/catalog' };
+  assert.equal(
+    readConfig({ ...database, CLIENT_DIR: '../client/dist' }).clientDirectory,
+    readConfig(database).clientDirectory,
+  );
+  assert.equal(
+    readConfig({ ...database, CLIENT_DIR: '../custom/dist' }).clientDirectory,
+    fileURLToPath(new URL('../../custom/dist', import.meta.url)),
+  );
+});
