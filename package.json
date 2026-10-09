@@ -13,15 +13,22 @@
     "migrate:production": "npm run migrate:production -w @linksmith/api",
     "check": "npm run typecheck",
     "test": "npm test --workspaces --if-present",
-    "biome": "biome check .",
-    "biome:fix": "biome check --write .",
     "dev:api": "npm run dev -w @linksmith/api",
     "dev:web": "npm run dev -w @linksmith/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "verify:start": "node scripts/verify-start.mjs"
+    "verify:start": "node scripts/verify-start.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
-    "concurrently": "^10.0.5"
+    "concurrently": "^10.0.5",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "typescript-eslint": "8.69.0",
+    "globals": "14.0.0"
   }
 }

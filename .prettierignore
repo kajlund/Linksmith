@@ -1,0 +1,17 @@
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/.git/
+**/.vscode/
+**/.doc/
+**/.artifacts/
+**/.verification/
+**/.cache/
+**/.vite/
+**/data/
+**/package-lock.json
+**/*.tsbuildinfo
+**/.compiled/

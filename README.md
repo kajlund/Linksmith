@@ -56,16 +56,16 @@ dotenv automatically loads this **repository-root `.env`**, independently of the
 
 `ENV_FILE` selects an alternative dotenv file, with relative paths resolved from the process working directory. An explicitly selected missing/unreadable file fails startup. The default `.env` is optional when configuration is supplied by the environment. Never commit credentials.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | Required | PostgreSQL connection URL |
-| `BIND_ADDR` | `127.0.0.1:8080` | HTTP host:port; IPv6 uses `[::1]:8080` |
-| `CLIENT_DIR` | `../web/dist` | Client build; relative paths resolve from `apps/api/` |
-| `ENV_FILE` | Repository-root `.env` | Alternative dotenv file |
-| `NODE_ENV` | Development behavior | Set `production` for deployment |
-| `LOG_LEVEL` | `info` | Pino level, e.g. debug/info/warn/error |
-| `LOG_PRETTY` | true outside production, false in production | Optional true/false format override |
-| `TEST_DATABASE_URL` | Optional, tests only | Disposable database ending in `_test` |
+| Variable            | Default                                      | Purpose                                               |
+| ------------------- | -------------------------------------------- | ----------------------------------------------------- |
+| `DATABASE_URL`      | Required                                     | PostgreSQL connection URL                             |
+| `BIND_ADDR`         | `127.0.0.1:8080`                             | HTTP host:port; IPv6 uses `[::1]:8080`                |
+| `CLIENT_DIR`        | `../web/dist`                                | Client build; relative paths resolve from `apps/api/` |
+| `ENV_FILE`          | Repository-root `.env`                       | Alternative dotenv file                               |
+| `NODE_ENV`          | Development behavior                         | Set `production` for deployment                       |
+| `LOG_LEVEL`         | `info`                                       | Pino level, e.g. debug/info/warn/error                |
+| `LOG_PRETTY`        | true outside production, false in production | Optional true/false format override                   |
+| `TEST_DATABASE_URL` | Optional, tests only                         | Disposable database ending in `_test`                 |
 
 ## Install and migrate
 
@@ -97,18 +97,18 @@ IDs change once during this upgrade. Previously saved integer resource links and
 
 Root npm commands forward to the apps/web/server packages:
 
-| Command | Action |
-| --- | --- |
-| `npm start` | Start the compiled server, serving `apps/web/dist` too |
-| `npm run dev` | Start the API with automatic restart and the Vite web app |
-| `npm run dev:api` | Start only the API with automatic restart |
-| `npm run dev:web` | Start the Vite development client in another terminal |
-| `npm run build` | Build both client and server |
-| `npm run migrate` | Apply pending migrations using the root `.env` |
-| `npm run migrate:production` | Apply migrations using the compiled server |
-| `npm run check` | Type-check both packages |
-| `npm test` | Run server tests |
-| `npm run verify:start` | Start the compiled app and check built pages/assets over HTTP using an unused local port and a dummy database URL |
+| Command                      | Action                                                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `npm start`                  | Start the compiled server, serving `apps/web/dist` too                                                            |
+| `npm run dev`                | Start the API with automatic restart and the Vite web app                                                         |
+| `npm run dev:api`            | Start only the API with automatic restart                                                                         |
+| `npm run dev:web`            | Start the Vite development client in another terminal                                                             |
+| `npm run build`              | Build both client and server                                                                                      |
+| `npm run migrate`            | Apply pending migrations using the root `.env`                                                                    |
+| `npm run migrate:production` | Apply migrations using the compiled server                                                                        |
+| `npm run check`              | Type-check both packages                                                                                          |
+| `npm test`                   | Run server tests                                                                                                  |
+| `npm run verify:start`       | Start the compiled app and check built pages/assets over HTTP using an unused local port and a dummy database URL |
 
 For one server serving the built client, run `npm run build` once, then `npm start`. Open **http://127.0.0.1:8080** (unless you changed `BIND_ADDR`). For server development with the built client, use `npm run dev:api`. These commands still load the repository-root `.env`; migrations remain explicit.
 
@@ -198,15 +198,7 @@ npm start -w @linksmith/api
 
 ## Verification
 
-Run [Biome](https://biomejs.dev/reference/cli/) from the repository root to check formatting, lint rules, and imports across supported apps/web/server source and configuration files:
-
-```sh
-npm ci
-npm run biome
-npm run biome:fix
-```
-
-`biome:fix` applies safe fixes. Generated builds, dependencies, lockfiles, and temporary verification tooling are excluded by `biome.json`; Git ignore rules are respected. SQL and Markdown are outside Biome's supported checks. Formatting/lint findings cause the check command to exit unsuccessfully until addressed.
+Use the shared ESLint and Prettier commands below for source checks and formatting.
 
 ```sh
 npm run check -w @linksmith/api
@@ -285,3 +277,16 @@ links.home.arpa {
 ```
 
 Configure local DNS, trust Caddy's local CA on your devices, and restrict ingress to your trusted network. Use your existing PostgreSQL backup procedures.
+
+## Linting and formatting
+
+All Dreamquest projects use the same ESLint and Prettier configuration, based on Activus. Run these commands from the repository root:
+
+```sh
+npm run lint
+npm run lint:fix
+npm run format
+npm run format:check
+```
+
+ESLint checks supported JavaScript and TypeScript files and treats warnings as failures. Prettier formats its supported source, configuration, and documentation files with single quotes, trailing commas, and LF line endings. Dependencies, generated builds and test output, local data, editor settings, archived artifacts, and dependency lockfiles are excluded. SQL and Nunjucks templates are outside the installed tools' supported file types.

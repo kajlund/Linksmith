@@ -40,7 +40,9 @@ function stored(key: string, fallback: string) {
 function persist(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
-  } catch {}
+  } catch {
+    /* Storage may be unavailable in private browsing. */
+  }
 }
 
 const blank = (category: string | null): ResourceInput => ({
@@ -480,68 +482,176 @@ class LinksmithApp extends LitElement {
   }
 
   private nav() {
-    return html`<nav aria-label="Resource navigation"><div class="nav-group">
-      <button class=${this.category === null && !this.favorite && !this.inbox ? 'nav selected' : 'nav'} @click=${() =>
-        this.applyFilters(() => {
-          this.category = null;
-          this.inbox = false;
-          this.favorite = false;
-        })}>${icon('book')} All resources</button>
-      <button class=${this.inbox ? 'nav selected' : 'nav'} aria-pressed=${this.inbox} @click=${() =>
-        this.applyFilters(() => {
-          this.inbox = !this.inbox;
-        })}>${icon('inbox')} Inbox</button>
-      <button class=${this.favorite ? 'nav selected' : 'nav'} aria-pressed=${this.favorite} @click=${() =>
-        this.applyFilters(() => {
-          this.favorite = !this.favorite;
-        })}>${icon('star')} Favorites</button>
-    </div><p class="eyebrow">Categories</p><div class="nav-group">
-      ${this.categories
-        .filter((c) => c.parent_id === null)
-        .map(
-          (
-            root,
-          ) => html`<button class=${this.category === root.id ? 'nav selected' : 'nav'} aria-pressed=${this.category === root.id} @click=${() =>
+    return html`<nav aria-label="Resource navigation">
+      <div class="nav-group">
+        <button
+          class=${this.category === null && !this.favorite && !this.inbox ? 'nav selected' : 'nav'}
+          @click=${() =>
             this.applyFilters(() => {
-              this.category = this.category === root.id ? null : root.id;
-            })}>${root.name}</button>
+              this.category = null;
+              this.inbox = false;
+              this.favorite = false;
+            })}
+        >
+          ${icon('book')} All resources
+        </button>
+        <button
+          class=${this.inbox ? 'nav selected' : 'nav'}
+          aria-pressed=${this.inbox}
+          @click=${() =>
+            this.applyFilters(() => {
+              this.inbox = !this.inbox;
+            })}
+        >
+          ${icon('inbox')} Inbox
+        </button>
+        <button
+          class=${this.favorite ? 'nav selected' : 'nav'}
+          aria-pressed=${this.favorite}
+          @click=${() =>
+            this.applyFilters(() => {
+              this.favorite = !this.favorite;
+            })}
+        >
+          ${icon('star')} Favorites
+        </button>
+      </div>
+      <p class="eyebrow">Categories</p>
+      <div class="nav-group">
         ${this.categories
-          .filter((c) => c.parent_id === root.id)
+          .filter((c) => c.parent_id === null)
           .map(
-            (child) =>
-              html`<button class=${this.category === child.id ? 'nav child selected' : 'nav child'} aria-pressed=${this.category === child.id} @click=${() =>
-                this.applyFilters(() => {
-                  this.category = this.category === child.id ? null : child.id;
-                })}>${child.name}</button>`,
-          )}`,
-        )}
-      ${this.categories.length ? nothing : html`<p class="muted small">A little structure goes a long way. Add your first category below.</p>`}
-    </div><button class="quiet manage-button" @click=${this.openManager}>${icon('edit')} Manage categories & tags</button></nav>`;
+            (root) =>
+              html`<button
+                  class=${this.category === root.id ? 'nav selected' : 'nav'}
+                  aria-pressed=${this.category === root.id}
+                  @click=${() =>
+                    this.applyFilters(() => {
+                      this.category =
+                        this.category === root.id ? null : root.id;
+                    })}
+                >
+                  ${root.name}
+                </button>
+                ${this.categories
+                  .filter((c) => c.parent_id === root.id)
+                  .map(
+                    (child) =>
+                      html`<button
+                        class=${this.category === child.id ? 'nav child selected' : 'nav child'}
+                        aria-pressed=${this.category === child.id}
+                        @click=${() =>
+                          this.applyFilters(() => {
+                            this.category =
+                              this.category === child.id ? null : child.id;
+                          })}
+                      >
+                        ${child.name}
+                      </button>`,
+                  )}`,
+          )}
+        ${this.categories.length ? nothing : html`<p class="muted small">A little structure goes a long way. Add your first category below.</p>`}
+      </div>
+      <button class="quiet manage-button" @click=${this.openManager}>
+        ${icon('edit')} Manage categories & tags
+      </button>
+    </nav>`;
   }
 
   private chip(label: string, action: () => void) {
-    return html`<button class="chip" aria-label=${`Remove filter: ${label}`} @click=${() => this.applyFilters(action)}>${label}${icon('close')}</button>`;
+    return html`<button
+      class="chip"
+      aria-label=${`Remove filter: ${label}`}
+      @click=${() => this.applyFilters(action)}
+    >
+      ${label}${icon('close')}
+    </button>`;
   }
 
   private entry(r: Resource) {
     const expanded = this.expanded.has(r.id);
-    return html`<article class="entry"><div class="entry-heading"><div class="entry-title"><a href=${r.url} target="_blank" rel="noopener noreferrer">${r.name || r.domain}</a><span class="domain">${r.domain}</span></div>
-      <div class="entry-actions">${r.rating !== null ? html`<span class="rating" aria-label=${`${r.rating} out of 5 stars`}>${icon('star')} ${r.rating}</span>` : nothing}
-        <button class=${r.favorite ? 'icon-button favored' : 'icon-button'} aria-label=${(r.favorite ? 'Remove favorite: ' : 'Favorite: ') + (r.name || r.domain)} aria-pressed=${r.favorite} ?disabled=${this.pendingFavorites.has(r.id)} @click=${() => this.toggleFavorite(r)}>${icon('star')}</button>
-        <button class=${expanded ? 'icon-button expand open' : 'icon-button expand'} aria-label=${(expanded ? 'Collapse ' : 'Expand ') + (r.name || r.domain)} aria-expanded=${expanded} aria-controls=${`details-${r.id}`} @click=${() => {
-          const set = new Set(this.expanded);
-          expanded ? set.delete(r.id) : set.add(r.id);
-          this.expanded = set;
-        }}>${icon('chevron')}</button></div></div>
+    return html`<article class="entry">
+      <div class="entry-heading">
+        <div class="entry-title">
+          <a href=${r.url} target="_blank" rel="noopener noreferrer"
+            >${r.name || r.domain}</a
+          ><span class="domain">${r.domain}</span>
+        </div>
+        <div class="entry-actions">
+          ${r.rating !== null ? html`<span class="rating" aria-label=${`${r.rating} out of 5 stars`}>${icon('star')} ${r.rating}</span>` : nothing}
+          <button
+            class=${r.favorite ? 'icon-button favored' : 'icon-button'}
+            aria-label=${(r.favorite ? 'Remove favorite: ' : 'Favorite: ') + (r.name || r.domain)}
+            aria-pressed=${r.favorite}
+            ?disabled=${this.pendingFavorites.has(r.id)}
+            @click=${() => this.toggleFavorite(r)}
+          >
+            ${icon('star')}
+          </button>
+          <button
+            class=${expanded ? 'icon-button expand open' : 'icon-button expand'}
+            aria-label=${(expanded ? 'Collapse ' : 'Expand ') + (r.name || r.domain)}
+            aria-expanded=${expanded}
+            aria-controls=${`details-${r.id}`}
+            @click=${() => {
+              const set = new Set(this.expanded);
+              if (expanded) set.delete(r.id);
+              else set.add(r.id);
+              this.expanded = set;
+            }}
+          >
+            ${icon('chevron')}
+          </button>
+        </div>
+      </div>
       ${r.description ? html`<p class="preview">${r.description}</p>` : nothing}
       ${r.tags.length ? html`<div class="entry-tags">${r.tags.map((t) => html`<span>${t.name}</span>`)}</div>` : nothing}
       <div id=${`details-${r.id}`} ?hidden=${!expanded} class="entry-details">
-        ${r.description ? html`<h3>Description</h3><p class="plain">${r.description}</p>` : nothing}
-        ${r.notes ? html`<h3>Private notes</h3><p class="plain">${r.notes}</p>` : nothing}
-        ${r.keywords ? html`<h3>Keywords</h3><p class="plain">${r.keywords}</p>` : nothing}
-        <dl><div><dt>Category</dt><dd>${this.categoryLabel(r.category_id)}</dd></div><div><dt>Pricing</dt><dd>${r.pricing}</dd></div><div><dt>Added</dt><dd>${new Date(r.created_at).toLocaleDateString()}</dd></div></dl>
-        <p class="full-url">${r.url}</p><div class="row"><button class="quiet" @click=${() => this.openForm(r)}>${icon('edit')} Edit</button><button class="quiet danger" @click=${() => this.confirm('resources', r.id, r.name || r.domain)}>${icon('trash')} Delete</button></div>
-      </div></article>`;
+        ${
+          r.description
+            ? html`<h3>Description</h3>
+                <p class="plain">${r.description}</p>`
+            : nothing
+        }
+        ${
+          r.notes
+            ? html`<h3>Private notes</h3>
+                <p class="plain">${r.notes}</p>`
+            : nothing
+        }
+        ${
+          r.keywords
+            ? html`<h3>Keywords</h3>
+                <p class="plain">${r.keywords}</p>`
+            : nothing
+        }
+        <dl>
+          <div>
+            <dt>Category</dt>
+            <dd>${this.categoryLabel(r.category_id)}</dd>
+          </div>
+          <div>
+            <dt>Pricing</dt>
+            <dd>${r.pricing}</dd>
+          </div>
+          <div>
+            <dt>Added</dt>
+            <dd>${new Date(r.created_at).toLocaleDateString()}</dd>
+          </div>
+        </dl>
+        <p class="full-url">${r.url}</p>
+        <div class="row">
+          <button class="quiet" @click=${() => this.openForm(r)}>
+            ${icon('edit')} Edit</button
+          ><button
+            class="quiet danger"
+            @click=${() => this.confirm('resources', r.id, r.name || r.domain)}
+          >
+            ${icon('trash')} Delete
+          </button>
+        </div>
+      </div>
+    </article>`;
   }
 
   private fieldError(key: string) {
@@ -556,7 +666,8 @@ class LinksmithApp extends LitElement {
       .filter((c) => c.parent_id === null)
       .map(
         (root) =>
-          html`<option value=${root.id}>${root.name}</option>${this.categories.filter((c) => c.parent_id === root.id).map((child) => html`<option value=${child.id}>${root.name} / ${child.name}</option>`)}`,
+          html`<option value=${root.id}>${root.name}</option>
+            ${this.categories.filter((c) => c.parent_id === root.id).map((child) => html`<option value=${child.id}>${root.name} / ${child.name}</option>`)}`,
       );
   }
 
@@ -570,97 +681,346 @@ class LinksmithApp extends LitElement {
       )
       .slice(0, 8);
 
-    return html`<dialog id="resource-dialog" aria-labelledby="resource-heading" @cancel=${this.cancel}>
-      <header class="dialog-header"><h2 id="resource-heading">${this.editing ? 'Edit resource' : 'Add resource'}</h2><button type="button" class="icon-button" aria-label="Close resource editor" ?disabled=${this.saving} @click=${() => this.close('resource-dialog')}>${icon('close')}</button></header>
-      <form @submit=${(e: Event) => {
-        e.preventDefault();
-        void this.save(false);
-      }}>
-        <fieldset ?disabled=${this.saving}><label>URL <span class="muted">required</span><input autofocus id="resource-url" type="url" required maxlength="4096" placeholder="https://example.com" .value=${f.url} aria-invalid=${Boolean(this.formError?.fields?.url)} aria-describedby="error-url" @input=${(e: Event) => this.setForm('url', (e.target as HTMLInputElement).value)}>${this.fieldError('url')}</label>
-        <label>Name <span class="muted">optional</span><input maxlength="300" .value=${f.name} placeholder="Leave blank to use the domain" @input=${(e: Event) => this.setForm('name', (e.target as HTMLInputElement).value)}>${this.fieldError('name')}</label>
-        <label>Description<textarea rows="3" maxlength="20000" .value=${f.description} @input=${(e: Event) => this.setForm('description', (e.target as HTMLTextAreaElement).value)}></textarea>${this.fieldError('description')}</label>
-        <label>Category<select .value=${String(f.category_id ?? '')} @change=${(e: Event) => this.setForm('category_id', (e.target as HTMLSelectElement).value || null)}><option value="">Uncategorized</option>${this.categoryOptions()}</select>${this.fieldError('category_id')}</label>
-        <div class="form-group"><label for="tag-input">Tags</label><div class="row"><input id="tag-input" autocomplete="off" maxlength="100" placeholder="Find or create a tag" .value=${this.tagText} @input=${(
-          e: Event,
-        ) => {
-          this.tagText = (e.target as HTMLInputElement).value;
-        }} @keydown=${(e: KeyboardEvent) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            void this.addFormTag();
-          }
-        }}><button type="button" ?disabled=${!this.tagText.trim()} @click=${this.addFormTag}>Add tag</button></div>
-        <div class="tag-suggestions" aria-label="Existing tag suggestions">${suggestions.map(
-          (t) =>
-            html`<button type="button" class="small quiet" @click=${() => {
-              this.setForm('tag_ids', [...f.tag_ids, t.id]);
-              this.tagText = '';
-            }}>+ ${t.name}</button>`,
-        )}</div>
-        <div class="tag-suggestions">${f.tag_ids.map(
-          (id) =>
-            html`<button type="button" class="chip" aria-label=${`Remove tag ${this.tags.find((t) => t.id === id)?.name ?? id}`} @click=${() =>
-              this.setForm(
-                'tag_ids',
-                f.tag_ids.filter((t) => t !== id),
-              )}>${this.tags.find((t) => t.id === id)?.name ?? 'Deleted tag'}${icon('close')}</button>`,
-        )}</div>${this.fieldError('tag_ids')}</div>
-        <div class="two-columns"><label>Rating<select .value=${String(f.rating ?? '')} @change=${(e: Event) => this.setForm('rating', Number((e.target as HTMLSelectElement).value) || null)}><option value="">Unrated</option>${[1, 2, 3, 4, 5].map((n) => html`<option value=${n}>${n} ${n === 1 ? 'star' : 'stars'}</option>`)}</select>${this.fieldError('rating')}</label>
-        <label>Pricing<select .value=${f.pricing} @change=${(e: Event) => this.setForm('pricing', (e.target as HTMLSelectElement).value)}>${['Unknown', 'Free', 'Freemium', 'Paid'].map((p) => html`<option>${p}</option>`)}</select>${this.fieldError('pricing')}</label></div>
-        <label class="checkbox"><input type="checkbox" .checked=${f.favorite} @change=${(e: Event) => this.setForm('favorite', (e.target as HTMLInputElement).checked)}>Favorite</label>
-        <details class="secondary-fields"><summary>Private notes & keywords</summary><label>Private notes<textarea rows="4" maxlength="50000" .value=${f.notes} @input=${(e: Event) => this.setForm('notes', (e.target as HTMLTextAreaElement).value)}></textarea>${this.fieldError('notes')}</label><label>Aliases / keywords<textarea rows="2" maxlength="2000" .value=${f.keywords} @input=${(e: Event) => this.setForm('keywords', (e.target as HTMLTextAreaElement).value)}></textarea>${this.fieldError('keywords')}</label></details></fieldset>
-        ${this.formError ? html`<div class="error" role="alert"><p>${this.formError.message}</p>${this.formError.existing?.map((r) => html`<div class="duplicate"><a href=${r.url} target="_blank" rel="noopener noreferrer">${r.name || r.domain}</a><button type="button" class="quiet" @click=${() => this.existingEdit(r)}>Edit existing</button></div>`)}${this.formError.code === 'duplicate' ? html`<label class="checkbox"><input type="checkbox" .checked=${f.acknowledge_duplicate} @change=${(e: Event) => this.setForm('acknowledge_duplicate', (e.target as HTMLInputElement).checked)}>I want to save another copy of this URL</label>` : nothing}</div>` : nothing}
-        <footer class="dialog-footer"><button type="button" ?disabled=${this.saving} @click=${() => this.close('resource-dialog')}>Cancel</button><button type="button" ?disabled=${this.saving} @click=${() => {
-          const form = this.querySelector<HTMLFormElement>(
-            '#resource-dialog form',
-          );
-          if (form?.reportValidity()) void this.save(true);
-        }}>Save & add another</button><button class="primary" type="submit" ?disabled=${this.saving}>${this.saving ? 'Saving…' : 'Save'}</button></footer>
-      </form></dialog>`;
+    return html`<dialog
+      id="resource-dialog"
+      aria-labelledby="resource-heading"
+      @cancel=${this.cancel}
+    >
+      <header class="dialog-header">
+        <h2 id="resource-heading">
+          ${this.editing ? 'Edit resource' : 'Add resource'}
+        </h2>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Close resource editor"
+          ?disabled=${this.saving}
+          @click=${() => this.close('resource-dialog')}
+        >
+          ${icon('close')}
+        </button>
+      </header>
+      <form
+        @submit=${(e: Event) => {
+          e.preventDefault();
+          void this.save(false);
+        }}
+      >
+        <fieldset ?disabled=${this.saving}>
+          <label
+            >URL <span class="muted">required</span
+            ><input
+              autofocus
+              id="resource-url"
+              type="url"
+              required
+              maxlength="4096"
+              placeholder="https://example.com"
+              .value=${f.url}
+              aria-invalid=${Boolean(this.formError?.fields?.url)}
+              aria-describedby="error-url"
+              @input=${(e: Event) => this.setForm('url', (e.target as HTMLInputElement).value)}
+            />${this.fieldError('url')}</label
+          >
+          <label
+            >Name <span class="muted">optional</span
+            ><input
+              maxlength="300"
+              .value=${f.name}
+              placeholder="Leave blank to use the domain"
+              @input=${(e: Event) => this.setForm('name', (e.target as HTMLInputElement).value)}
+            />${this.fieldError('name')}</label
+          >
+          <label
+            >Description<textarea
+              rows="3"
+              maxlength="20000"
+              .value=${f.description}
+              @input=${(e: Event) => this.setForm('description', (e.target as HTMLTextAreaElement).value)}
+            ></textarea
+            >${this.fieldError('description')}</label
+          >
+          <label
+            >Category<select
+              .value=${String(f.category_id ?? '')}
+              @change=${(e: Event) => this.setForm('category_id', (e.target as HTMLSelectElement).value || null)}
+            >
+              <option value="">Uncategorized</option>
+              ${this.categoryOptions()}</select
+            >${this.fieldError('category_id')}</label
+          >
+          <div class="form-group">
+            <label for="tag-input">Tags</label>
+            <div class="row">
+              <input
+                id="tag-input"
+                autocomplete="off"
+                maxlength="100"
+                placeholder="Find or create a tag"
+                .value=${this.tagText}
+                @input=${(e: Event) => {
+                  this.tagText = (e.target as HTMLInputElement).value;
+                }}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void this.addFormTag();
+                  }
+                }}
+              /><button
+                type="button"
+                ?disabled=${!this.tagText.trim()}
+                @click=${this.addFormTag}
+              >
+                Add tag
+              </button>
+            </div>
+            <div class="tag-suggestions" aria-label="Existing tag suggestions">
+              ${suggestions.map(
+                (t) =>
+                  html`<button
+                    type="button"
+                    class="small quiet"
+                    @click=${() => {
+                      this.setForm('tag_ids', [...f.tag_ids, t.id]);
+                      this.tagText = '';
+                    }}
+                  >
+                    + ${t.name}
+                  </button>`,
+              )}
+            </div>
+            <div class="tag-suggestions">
+              ${f.tag_ids.map(
+                (id) =>
+                  html`<button
+                    type="button"
+                    class="chip"
+                    aria-label=${`Remove tag ${this.tags.find((t) => t.id === id)?.name ?? id}`}
+                    @click=${() =>
+                      this.setForm(
+                        'tag_ids',
+                        f.tag_ids.filter((t) => t !== id),
+                      )}
+                  >
+                    ${this.tags.find((t) => t.id === id)?.name ?? 'Deleted tag'}${icon('close')}
+                  </button>`,
+              )}
+            </div>
+            ${this.fieldError('tag_ids')}
+          </div>
+          <div class="two-columns">
+            <label
+              >Rating<select
+                .value=${String(f.rating ?? '')}
+                @change=${(e: Event) => this.setForm('rating', Number((e.target as HTMLSelectElement).value) || null)}
+              >
+                <option value="">Unrated</option>
+                ${[1, 2, 3, 4, 5].map((n) => html`<option value=${n}>${n} ${n === 1 ? 'star' : 'stars'}</option>`)}</select
+              >${this.fieldError('rating')}</label
+            >
+            <label
+              >Pricing<select
+                .value=${f.pricing}
+                @change=${(e: Event) => this.setForm('pricing', (e.target as HTMLSelectElement).value)}
+              >
+                ${['Unknown', 'Free', 'Freemium', 'Paid'].map((p) => html`<option>${p}</option>`)}</select
+              >${this.fieldError('pricing')}</label
+            >
+          </div>
+          <label class="checkbox"
+            ><input
+              type="checkbox"
+              .checked=${f.favorite}
+              @change=${(e: Event) => this.setForm('favorite', (e.target as HTMLInputElement).checked)}
+            />Favorite</label
+          >
+          <details class="secondary-fields">
+            <summary>Private notes & keywords</summary>
+            <label
+              >Private notes<textarea
+                rows="4"
+                maxlength="50000"
+                .value=${f.notes}
+                @input=${(e: Event) => this.setForm('notes', (e.target as HTMLTextAreaElement).value)}
+              ></textarea
+              >${this.fieldError('notes')}</label
+            ><label
+              >Aliases / keywords<textarea
+                rows="2"
+                maxlength="2000"
+                .value=${f.keywords}
+                @input=${(e: Event) => this.setForm('keywords', (e.target as HTMLTextAreaElement).value)}
+              ></textarea
+              >${this.fieldError('keywords')}</label
+            >
+          </details>
+        </fieldset>
+        ${
+          this.formError
+            ? html`<div class="error" role="alert">
+                <p>${this.formError.message}</p>
+                ${this.formError.existing?.map((r) => html`<div class="duplicate"><a href=${r.url} target="_blank" rel="noopener noreferrer">${r.name || r.domain}</a><button type="button" class="quiet" @click=${() => this.existingEdit(r)}>Edit existing</button></div>`)}${this.formError.code === 'duplicate' ? html`<label class="checkbox"><input type="checkbox" .checked=${f.acknowledge_duplicate} @change=${(e: Event) => this.setForm('acknowledge_duplicate', (e.target as HTMLInputElement).checked)} />I want to save another copy of this URL</label>` : nothing}
+              </div>`
+            : nothing
+        }
+        <footer class="dialog-footer">
+          <button
+            type="button"
+            ?disabled=${this.saving}
+            @click=${() => this.close('resource-dialog')}
+          >
+            Cancel</button
+          ><button
+            type="button"
+            ?disabled=${this.saving}
+            @click=${() => {
+              const form = this.querySelector<HTMLFormElement>(
+                '#resource-dialog form',
+              );
+              if (form?.reportValidity()) void this.save(true);
+            }}
+          >
+            Save & add another</button
+          ><button class="primary" type="submit" ?disabled=${this.saving}>
+            ${this.saving ? 'Saving…' : 'Save'}
+          </button>
+        </footer>
+      </form>
+    </dialog>`;
   }
 
   private manageDialog() {
-    return html`<dialog id="manage-dialog" aria-labelledby="manage-heading" @cancel=${this.cancel}><header class="dialog-header"><h2 id="manage-heading">Categories & tags</h2><button class="icon-button" aria-label="Close management" ?disabled=${this.managing} @click=${() => this.close('manage-dialog')}>${icon('close')}</button></header>
-    <div class="row tabs"><button autofocus aria-pressed=${this.managerType === 'categories'} @click=${() => {
-      this.managerType = 'categories';
-      this.selectManaged(null);
-    }}>Categories</button><button aria-pressed=${this.managerType === 'tags'} @click=${() => {
-      this.managerType = 'tags';
-      this.selectManaged(null);
-    }}>Tags</button></div>
-    <form @submit=${this.saveManaged}><fieldset ?disabled=${this.managing}><label>Choose an item to edit<select .value=${String(this.managerID ?? '')} @change=${(e: Event) => this.selectManaged((e.target as HTMLSelectElement).value || null)}><option value="">Add new ${this.managerType === 'categories' ? 'category' : 'tag'}</option>${this.managerType === 'categories' ? this.categoryOptions() : this.tags.map((t) => html`<option value=${t.id}>${t.name}</option>`)}</select></label>
-    <label>Name<input required maxlength="100" .value=${this.managerName} @input=${(
-      e: Event,
-    ) => {
-      this.managerName = (e.target as HTMLInputElement).value;
-    }}></label>
-    ${
-      this.managerType === 'categories'
-        ? html`<label>Parent<select .value=${String(this.managerParent ?? '')} @change=${(
-            e: Event,
-          ) => {
-            this.managerParent = (e.target as HTMLSelectElement).value || null;
-          }}><option value="">None — root category</option>${this.categories.filter((c) => c.parent_id === null && c.id !== this.managerID).map((c) => html`<option value=${c.id}>${c.name}</option>`)}</select></label><p class="muted small">Two levels: root and child. Move children and reassign resources before deleting a category.</p>`
-        : html`<p class="muted small">Deleting a tag removes its associations; resources stay in your notebook.</p>`
-    }</fieldset>
-    ${this.managerError ? html`<p class="error" role="alert">${this.managerError}</p>` : nothing}<footer class="dialog-footer">${
-      this.managerID
-        ? html`<button type="button" class="danger" ?disabled=${this.managing} @click=${() => {
-            if (this.managerID !== null)
-              this.confirm(this.managerType, this.managerID, this.managerName);
-          }}>Delete</button>`
-        : nothing
-    }<button class="primary" ?disabled=${this.managing}>${this.managing ? 'Saving…' : this.managerID ? 'Save changes' : 'Add'}</button></footer></form></dialog>`;
+    return html`<dialog
+      id="manage-dialog"
+      aria-labelledby="manage-heading"
+      @cancel=${this.cancel}
+    >
+      <header class="dialog-header">
+        <h2 id="manage-heading">Categories & tags</h2>
+        <button
+          class="icon-button"
+          aria-label="Close management"
+          ?disabled=${this.managing}
+          @click=${() => this.close('manage-dialog')}
+        >
+          ${icon('close')}
+        </button>
+      </header>
+      <div class="row tabs">
+        <button
+          autofocus
+          aria-pressed=${this.managerType === 'categories'}
+          @click=${() => {
+            this.managerType = 'categories';
+            this.selectManaged(null);
+          }}
+        >
+          Categories</button
+        ><button
+          aria-pressed=${this.managerType === 'tags'}
+          @click=${() => {
+            this.managerType = 'tags';
+            this.selectManaged(null);
+          }}
+        >
+          Tags
+        </button>
+      </div>
+      <form @submit=${this.saveManaged}>
+        <fieldset ?disabled=${this.managing}>
+          <label
+            >Choose an item to edit<select
+              .value=${String(this.managerID ?? '')}
+              @change=${(e: Event) => this.selectManaged((e.target as HTMLSelectElement).value || null)}
+            >
+              <option value="">
+                Add new
+                ${this.managerType === 'categories' ? 'category' : 'tag'}
+              </option>
+              ${this.managerType === 'categories' ? this.categoryOptions() : this.tags.map((t) => html`<option value=${t.id}>${t.name}</option>`)}
+            </select></label
+          >
+          <label
+            >Name<input
+              required
+              maxlength="100"
+              .value=${this.managerName}
+              @input=${(e: Event) => {
+                this.managerName = (e.target as HTMLInputElement).value;
+              }}
+          /></label>
+          ${
+            this.managerType === 'categories'
+              ? html`<label
+                    >Parent<select
+                      .value=${String(this.managerParent ?? '')}
+                      @change=${(e: Event) => {
+                        this.managerParent =
+                          (e.target as HTMLSelectElement).value || null;
+                      }}
+                    >
+                      <option value="">None — root category</option>
+                      ${this.categories.filter((c) => c.parent_id === null && c.id !== this.managerID).map((c) => html`<option value=${c.id}>${c.name}</option>`)}
+                    </select></label
+                  >
+                  <p class="muted small">
+                    Two levels: root and child. Move children and reassign
+                    resources before deleting a category.
+                  </p>`
+              : html`<p class="muted small">
+                  Deleting a tag removes its associations; resources stay in
+                  your notebook.
+                </p>`
+          }
+        </fieldset>
+        ${this.managerError ? html`<p class="error" role="alert">${this.managerError}</p>` : nothing}
+        <footer class="dialog-footer">
+          ${
+            this.managerID
+              ? html`<button
+                  type="button"
+                  class="danger"
+                  ?disabled=${this.managing}
+                  @click=${() => {
+                    if (this.managerID !== null)
+                      this.confirm(
+                        this.managerType,
+                        this.managerID,
+                        this.managerName,
+                      );
+                  }}
+                >
+                  Delete
+                </button>`
+              : nothing
+          }<button class="primary" ?disabled=${this.managing}>
+            ${this.managing ? 'Saving…' : this.managerID ? 'Save changes' : 'Add'}
+          </button>
+        </footer>
+      </form>
+    </dialog>`;
   }
 
   render() {
     if (this.importOpen)
-      return html`<main class="import-shell"><button class="quiet" @click=${() => {
-        this.importOpen = false;
-      }}>← Back to notebook</button><linksmith-import .categories=${this.categories} .tags=${this.tags} @import-complete=${async () => {
-        await this.taxonomy();
-        await this.load();
-      }}></linksmith-import></main>`;
+      return html`<main class="import-shell">
+        <button
+          class="quiet"
+          @click=${() => {
+            this.importOpen = false;
+          }}
+        >
+          ← Back to notebook</button
+        ><linksmith-import
+          .categories=${this.categories}
+          .tags=${this.tags}
+          @import-complete=${async () => {
+            await this.taxonomy();
+            await this.load();
+          }}
+        ></linksmith-import>
+      </main>`;
     const title =
       this.category !== null
         ? this.categoryLabel(this.category)
@@ -675,109 +1035,303 @@ class LinksmithApp extends LitElement {
       this.favorite ||
       this.inbox ||
       this.selectedTags.length;
-    return html`<div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><img src="/favicon.svg" width="28" height="28" alt="" /> Linksmith</a><p class="brand-caption">A personal resource notebook</p>${this.nav()}<label class="theme-select">${icon('moon')}<span>Theme</span><select aria-label="Theme" .value=${this.theme} @change=${this.setTheme}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></aside>
-      <main><header class="main-header"><div><button class="mobile-menu icon-button" aria-label="Open navigation" @click=${() => this.show('nav-dialog')}>${icon('menu')}</button><p class="eyebrow">Your notebook</p><h1>${title}</h1>${this.category !== null && this.categories.some((c) => c.parent_id === this.category) ? html`<p class="muted small">Includes this category and its children</p>` : nothing}</div><button class="quiet" @click=${() => {
-        this.importOpen = true;
-      }}>Import Markdown</button><button class="primary add-resource" @click=${() => this.openForm()}>${icon('plus')} Add resource</button></header>
-      <div class="toolbar"><label class="search">${icon('search')}<input type="search" aria-label="Search resources" placeholder="Search your notebook…" maxlength="200" .value=${this.query} @input=${(
-        e: Event,
-      ) => {
-        this.query = (e.target as HTMLInputElement).value;
-        clearTimeout(this.searchTimer);
-        this.searchTimer = setTimeout(() => {
-          this.page = 1;
-          void this.load();
-        }, 250);
-      }}></label>
-      <div class="filter-controls"><label>Tag<select aria-label="Add tag filter" .value=${''} @change=${(
-        e: Event,
-      ) => {
-        const target = e.target as HTMLSelectElement;
-        const id = target.value;
-        if (id)
-          this.applyFilters(() => {
-            this.selectedTags = [...new Set([...this.selectedTags, id])];
-          });
-        target.value = '';
-      }}><option value="">Filter by tag</option>${this.tags.filter((t) => !this.selectedTags.includes(t.id)).map((t) => html`<option value=${t.id}>${t.name}</option>`)}</select></label><label>Sort<select .value=${this.sort} @change=${(
-        e: Event,
-      ) =>
-        this.applyFilters(() => {
-          this.sort = (e.target as HTMLSelectElement).value;
-          persist('linksmith.sort', this.sort);
-        })}><option value="title">Alphabetical</option><option value="rating">Highest rated</option><option value="recent">Recently added</option></select></label></div></div>
-      ${
-        active
-          ? html`<div class="active-filters" aria-label="Active filters">${
-              this.category !== null
-                ? this.chip(this.categoryLabel(this.category), () => {
-                    this.category = null;
-                  })
-                : nothing
-            }${
-              this.favorite
-                ? this.chip('Favorites', () => {
-                    this.favorite = false;
-                  })
-                : nothing
-            }${
-              this.inbox
-                ? this.chip('Inbox', () => {
-                    this.inbox = false;
-                  })
-                : nothing
-            }${
-              this.query
-                ? this.chip(`Search: ${this.query}`, () => {
-                    this.query = '';
-                  })
-                : nothing
-            }${this.selectedTags.map((id) =>
-              this.chip(
-                this.tags.find((t) => t.id === id)?.name ?? 'Deleted tag',
-                () => {
-                  this.selectedTags = this.selectedTags.filter((t) => t !== id);
-                },
-              ),
-            )}<button class="quiet small" @click=${this.clear}>Clear filters</button>${this.selectedTags.length > 1 ? html`<span class="muted small">Matches every selected tag</span>` : nothing}</div>`
-          : nothing
-      }
-      ${
-        this.notice
-          ? html`<div class="notice" role="status">${this.notice}<button class="icon-button" aria-label="Dismiss message" @click=${() => {
-              this.notice = '';
-            }}>${icon('close')}</button></div>`
-          : nothing
-      }
-      <section class="results" aria-label="Resource results" aria-busy=${this.loading}>
-        ${
-          this.loading
-            ? html`<p class="status" role="status">Loading your notebook…</p>`
-            : this.listError
-              ? html`<div class="error" role="alert"><p>${this.listError}</p><button @click=${this.initialize}>Retry</button></div>`
-              : html`<div class="results-meta"><span>${this.total} ${this.total === 1 ? 'resource' : 'resources'}${active ? ' matching' : ''}</span><span>${this.total ? (this.page - 1) * 30 + 1 : 0}–${Math.min(this.page * 30, this.total)} of ${this.total}</span></div>
-        ${this.items.length ? this.items.map((r) => this.entry(r)) : html`<div class="empty"><h2>${active ? 'No matching resources' : 'Start your notebook'}</h2><p class="muted">${active ? 'Try removing a filter or changing your search.' : 'Capture a useful link. A URL is all you need.'}</p><button @click=${active ? this.clear : () => this.openForm()}>${active ? 'Clear filters' : 'Add your first resource'}</button></div>`}
-        ${
-          this.total > 30
-            ? html`<nav class="pagination" aria-label="Pagination"><button ?disabled=${this.page <= 1} @click=${() => {
-                this.page--;
-                void this.load();
-              }}>Previous</button><span>Page ${this.page} of ${Math.ceil(this.total / 30)}</span><button ?disabled=${this.page * 30 >= this.total} @click=${() => {
-                this.page++;
-                void this.load();
-              }}>Next</button></nav>`
-            : nothing
-        }`
-        }
-      </section><footer class="notebook-footer">A place for things worth remembering.</footer></main></div>
+    return html`<div class="app-shell">
+        <aside class="sidebar">
+          <a class="brand" href="/"
+            ><img src="/favicon.svg" width="28" height="28" alt="" />
+            Linksmith</a
+          >
+          <p class="brand-caption">A personal resource notebook</p>
+          ${this.nav()}<label class="theme-select"
+            >${icon('moon')}<span>Theme</span
+            ><select
+              aria-label="Theme"
+              .value=${this.theme}
+              @change=${this.setTheme}
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select></label
+          >
+        </aside>
+        <main>
+          <header class="main-header">
+            <div>
+              <button
+                class="mobile-menu icon-button"
+                aria-label="Open navigation"
+                @click=${() => this.show('nav-dialog')}
+              >
+                ${icon('menu')}
+              </button>
+              <p class="eyebrow">Your notebook</p>
+              <h1>${title}</h1>
+              ${this.category !== null && this.categories.some((c) => c.parent_id === this.category) ? html`<p class="muted small">Includes this category and its children</p>` : nothing}
+            </div>
+            <button
+              class="quiet"
+              @click=${() => {
+                this.importOpen = true;
+              }}
+            >
+              Import Markdown</button
+            ><button
+              class="primary add-resource"
+              @click=${() => this.openForm()}
+            >
+              ${icon('plus')} Add resource
+            </button>
+          </header>
+          <div class="toolbar">
+            <label class="search"
+              >${icon('search')}<input
+                type="search"
+                aria-label="Search resources"
+                placeholder="Search your notebook…"
+                maxlength="200"
+                .value=${this.query}
+                @input=${(e: Event) => {
+                  this.query = (e.target as HTMLInputElement).value;
+                  clearTimeout(this.searchTimer);
+                  this.searchTimer = setTimeout(() => {
+                    this.page = 1;
+                    void this.load();
+                  }, 250);
+                }}
+            /></label>
+            <div class="filter-controls">
+              <label
+                >Tag<select
+                  aria-label="Add tag filter"
+                  .value=${''}
+                  @change=${(e: Event) => {
+                    const target = e.target as HTMLSelectElement;
+                    const id = target.value;
+                    if (id)
+                      this.applyFilters(() => {
+                        this.selectedTags = [
+                          ...new Set([...this.selectedTags, id]),
+                        ];
+                      });
+                    target.value = '';
+                  }}
+                >
+                  <option value="">Filter by tag</option>
+                  ${this.tags.filter((t) => !this.selectedTags.includes(t.id)).map((t) => html`<option value=${t.id}>${t.name}</option>`)}
+                </select></label
+              ><label
+                >Sort<select
+                  .value=${this.sort}
+                  @change=${(e: Event) =>
+                    this.applyFilters(() => {
+                      this.sort = (e.target as HTMLSelectElement).value;
+                      persist('linksmith.sort', this.sort);
+                    })}
+                >
+                  <option value="title">Alphabetical</option>
+                  <option value="rating">Highest rated</option>
+                  <option value="recent">Recently added</option>
+                </select></label
+              >
+            </div>
+          </div>
+          ${
+            active
+              ? html`<div class="active-filters" aria-label="Active filters">
+                  ${
+                    this.category !== null
+                      ? this.chip(this.categoryLabel(this.category), () => {
+                          this.category = null;
+                        })
+                      : nothing
+                  }${
+                    this.favorite
+                      ? this.chip('Favorites', () => {
+                          this.favorite = false;
+                        })
+                      : nothing
+                  }${
+                    this.inbox
+                      ? this.chip('Inbox', () => {
+                          this.inbox = false;
+                        })
+                      : nothing
+                  }${
+                    this.query
+                      ? this.chip(`Search: ${this.query}`, () => {
+                          this.query = '';
+                        })
+                      : nothing
+                  }${this.selectedTags.map((id) =>
+                    this.chip(
+                      this.tags.find((t) => t.id === id)?.name ?? 'Deleted tag',
+                      () => {
+                        this.selectedTags = this.selectedTags.filter(
+                          (t) => t !== id,
+                        );
+                      },
+                    ),
+                  )}<button class="quiet small" @click=${this.clear}>
+                    Clear filters</button
+                  >${this.selectedTags.length > 1 ? html`<span class="muted small">Matches every selected tag</span>` : nothing}
+                </div>`
+              : nothing
+          }
+          ${
+            this.notice
+              ? html`<div class="notice" role="status">
+                  ${this.notice}<button
+                    class="icon-button"
+                    aria-label="Dismiss message"
+                    @click=${() => {
+                      this.notice = '';
+                    }}
+                  >
+                    ${icon('close')}
+                  </button>
+                </div>`
+              : nothing
+          }
+          <section
+            class="results"
+            aria-label="Resource results"
+            aria-busy=${this.loading}
+          >
+            ${
+              this.loading
+                ? html`<p class="status" role="status">
+                    Loading your notebook…
+                  </p>`
+                : this.listError
+                  ? html`<div class="error" role="alert">
+                      <p>${this.listError}</p>
+                      <button @click=${this.initialize}>Retry</button>
+                    </div>`
+                  : html`<div class="results-meta">
+                        <span
+                          >${this.total}
+                          ${this.total === 1 ? 'resource' : 'resources'}${active ? ' matching' : ''}</span
+                        ><span
+                          >${this.total ? (this.page - 1) * 30 + 1 : 0}–${Math.min(this.page * 30, this.total)}
+                          of ${this.total}</span
+                        >
+                      </div>
+                      ${
+                        this.items.length
+                          ? this.items.map((r) => this.entry(r))
+                          : html`<div class="empty">
+                              <h2>
+                                ${active ? 'No matching resources' : 'Start your notebook'}
+                              </h2>
+                              <p class="muted">
+                                ${active ? 'Try removing a filter or changing your search.' : 'Capture a useful link. A URL is all you need.'}
+                              </p>
+                              <button
+                                @click=${active ? this.clear : () => this.openForm()}
+                              >
+                                ${active ? 'Clear filters' : 'Add your first resource'}
+                              </button>
+                            </div>`
+                      }
+                      ${
+                        this.total > 30
+                          ? html`<nav
+                              class="pagination"
+                              aria-label="Pagination"
+                            >
+                              <button
+                                ?disabled=${this.page <= 1}
+                                @click=${() => {
+                                  this.page--;
+                                  void this.load();
+                                }}
+                              >
+                                Previous</button
+                              ><span
+                                >Page ${this.page} of
+                                ${Math.ceil(this.total / 30)}</span
+                              ><button
+                                ?disabled=${this.page * 30 >= this.total}
+                                @click=${() => {
+                                  this.page++;
+                                  void this.load();
+                                }}
+                              >
+                                Next
+                              </button>
+                            </nav>`
+                          : nothing
+                      }`
+            }
+          </section>
+          <footer class="notebook-footer">
+            A place for things worth remembering.
+          </footer>
+        </main>
+      </div>
       ${this.resourceDialog()}${this.manageDialog()}
-      <dialog id="delete-dialog" class="small-dialog" aria-labelledby="delete-heading" @cancel=${this.cancel}><h2 id="delete-heading">Delete ${this.confirmation?.kind === 'resources' ? 'resource' : this.confirmation?.kind === 'tags' ? 'tag' : 'category'}?</h2><p class="plain">${this.confirmation?.name}</p><p class="muted">${this.confirmation?.kind === 'tags' ? 'This removes the tag from all resources. Resources will be kept.' : 'This cannot be undone.'}</p>${this.deleteError ? html`<p class="error" role="alert">${this.deleteError}</p>` : nothing}<footer class="dialog-footer"><button autofocus ?disabled=${this.deleting} @click=${() => this.close('delete-dialog')}>Cancel</button><button class="danger" ?disabled=${this.deleting} @click=${this.deleteConfirmed}>${this.deleting ? 'Deleting…' : 'Delete'}</button></footer></dialog>
-      <dialog id="nav-dialog" class="drawer" aria-label="Navigation"><header class="dialog-header"><span class="brand"><img src="/favicon.svg" width="28" height="28" alt="" /> Linksmith</span><button autofocus class="icon-button" aria-label="Close navigation" @click=${() => this.close('nav-dialog')}>${icon('close')}</button></header><div @click=${(
-        e: Event,
-      ) => {
-        if ((e.target as HTMLElement).closest('button.nav'))
-          this.close('nav-dialog');
-      }}>${this.nav()}</div><label class="theme-select">Theme<select .value=${this.theme} @change=${this.setTheme}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></dialog>`;
+      <dialog
+        id="delete-dialog"
+        class="small-dialog"
+        aria-labelledby="delete-heading"
+        @cancel=${this.cancel}
+      >
+        <h2 id="delete-heading">
+          Delete
+          ${this.confirmation?.kind === 'resources' ? 'resource' : this.confirmation?.kind === 'tags' ? 'tag' : 'category'}?
+        </h2>
+        <p class="plain">${this.confirmation?.name}</p>
+        <p class="muted">
+          ${this.confirmation?.kind === 'tags' ? 'This removes the tag from all resources. Resources will be kept.' : 'This cannot be undone.'}
+        </p>
+        ${this.deleteError ? html`<p class="error" role="alert">${this.deleteError}</p>` : nothing}
+        <footer class="dialog-footer">
+          <button
+            autofocus
+            ?disabled=${this.deleting}
+            @click=${() => this.close('delete-dialog')}
+          >
+            Cancel</button
+          ><button
+            class="danger"
+            ?disabled=${this.deleting}
+            @click=${this.deleteConfirmed}
+          >
+            ${this.deleting ? 'Deleting…' : 'Delete'}
+          </button>
+        </footer>
+      </dialog>
+      <dialog id="nav-dialog" class="drawer" aria-label="Navigation">
+        <header class="dialog-header">
+          <span class="brand"
+            ><img src="/favicon.svg" width="28" height="28" alt="" />
+            Linksmith</span
+          ><button
+            autofocus
+            class="icon-button"
+            aria-label="Close navigation"
+            @click=${() => this.close('nav-dialog')}
+          >
+            ${icon('close')}
+          </button>
+        </header>
+        <div
+          @click=${(e: Event) => {
+            if ((e.target as HTMLElement).closest('button.nav'))
+              this.close('nav-dialog');
+          }}
+        >
+          ${this.nav()}
+        </div>
+        <label class="theme-select"
+          >Theme<select .value=${this.theme} @change=${this.setTheme}>
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select></label
+        >
+      </dialog>`;
   }
 }
 customElements.define('linksmith-app', LinksmithApp);

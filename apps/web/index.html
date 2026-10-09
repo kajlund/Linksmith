@@ -7,8 +7,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Linksmith · Personal resource notebook</title>
     <script>
-      try { const t = localStorage.getItem('linksmith.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+      try {
+        const t = localStorage.getItem('linksmith.theme');
+        if (t === 'light' || t === 'dark')
+          document.documentElement.dataset.theme = t;
+      } catch {}
     </script>
   </head>
-  <body><linksmith-app></linksmith-app><script type="module" src="/src/app.ts"></script></body>
+  <body>
+    <linksmith-app></linksmith-app>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
 </html>

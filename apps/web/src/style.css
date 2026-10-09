@@ -13,11 +13,16 @@
   --error-bg: #f9ede7;
   --focus: #70866c;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
   font-size: 15px;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme='light']) {
     color-scheme: dark;
     --bg: #20221f;
     --surface: #262925;
@@ -33,7 +38,7 @@
     --focus: #b6caa9;
   }
 }
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   color-scheme: dark;
   --bg: #20221f;
   --surface: #262925;
@@ -116,7 +121,7 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 34px;
   font-weight: 500;
   margin-bottom: 0;
@@ -138,7 +143,7 @@ svg {
   flex-shrink: 0;
 }
 [hidden] {
-  /* biome-ignore lint/complexity/noImportantStyles: The hidden attribute must override layout display rules. */
+  /* The hidden attribute must override layout display rules. */
   display: none !important;
 }
 fieldset {
@@ -627,7 +632,7 @@ summary {
 .tabs {
   margin-bottom: 20px;
 }
-.tabs button[aria-pressed="true"] {
+.tabs button[aria-pressed='true'] {
   background: var(--accent-soft);
   color: var(--accent);
 }

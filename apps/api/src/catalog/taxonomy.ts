@@ -47,7 +47,10 @@ export async function deleteCategory(db: Database, id: string) {
 }
 
 export function listTags(db: Database) {
-  return db.select().from(tags).orderBy(sql`lower(${tags.name})`, asc(tags.id));
+  return db
+    .select()
+    .from(tags)
+    .orderBy(sql`lower(${tags.name})`, asc(tags.id));
 }
 
 export async function saveTag(db: Database, name: string, id?: string) {

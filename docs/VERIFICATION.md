@@ -4,7 +4,7 @@ Checked on 2026-10-07 on Windows using Node 24.17.0, npm 11.13.0, isolated Postg
 
 ## Automated checks
 
-- Biome formatting, import organization, and lint checks across 41 supported source/configuration files: no diagnostics. The hidden-attribute display override retains a documented local exception for its required `!important` declaration.
+- Historical check (before the shared ESLint/Prettier migration): Biome formatting, import organization, and lint checks across 41 supported source/configuration files: no diagnostics. The hidden-attribute display override retains a documented local exception for its required `!important` declaration.
 - Server TypeScript check and compiled production build.
 - Node's built-in suite: URL normalization/rejection, category moves/depth, list parameter validation, dotenv loading/shell precedence, static serving/HEAD/client-route fallback, JSON errors, request/text/type limits, and unavailable-database readiness.
 - PostgreSQL integration suite in a disposable `linksmith_test` database and unique schema: repeatable migrations/history, reading a direct SQL insert with a UUID default, matching its normalized duplicate key, resource/category/tag CRUD, case-insensitive names, category moves, cycle/third-level prevention, atomic failed saves, duplicate acknowledgment on create/edit, unchanged-URL edits, simultaneous duplicate creates, combined category/tag/favorite/search filtering, literal `%` search, pagination totals, rating/recent sort order, and deletion restrictions/cleanup.
@@ -23,14 +23,14 @@ The original SQL migration remains unchanged. Migration 002 converts IDs and for
 
 Read only the five named files from `C:\Users\Kaj\Documents\Blog`. Parsed the supplied documents through the preview endpoint against the isolated database; resource counts were unchanged. No source files were copied or edited and no samples were applied to the live catalog.
 
-| File | HTTP(S) occurrences | Distinct candidates | Repeated occurrences | Candidates with warnings | Exclusions |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| javascript-lit.md | 15 | 13 | 2 | 8 | 4 |
-| db-resources.md | 27 | 26 | 1 | 3 | 1 |
-| webdev-learning.md | 10 | 10 | 0 | 5 | 1 |
-| node-resources.md | 183 | 181 | 2 | 87 | 1 |
-| software.md | 62 | 62 | 0 | 23 | 1 |
-| Total | 297 | 292 | 5 | 126 | 8 |
+| File               | HTTP(S) occurrences | Distinct candidates | Repeated occurrences | Candidates with warnings | Exclusions |
+| ------------------ | ------------------: | ------------------: | -------------------: | -----------------------: | ---------: |
+| javascript-lit.md  |                  15 |                  13 |                    2 |                        8 |          4 |
+| db-resources.md    |                  27 |                  26 |                    1 |                        3 |          1 |
+| webdev-learning.md |                  10 |                  10 |                    0 |                        5 |          1 |
+| node-resources.md  |                 183 |                 181 |                    2 |                       87 |          1 |
+| software.md        |                  62 |                  62 |                    0 |                       23 |          1 |
+| Total              |                 297 |                 292 |                    5 |                      126 |          8 |
 
 Every eligible parsed AST link/reference occurrence was independently compared with preview occurrences by filename, source line, and normalized URL, including repetitions. This checks accounting under the documented Markdown grammar; it is not a regex link-count claim or a guarantee that arbitrary malformed Markdown has intended semantics. Exclusions are source constructs (front matter/code/etc.), not hidden counts of HTTP links inside code. Ambiguous links stay visible and excluded until review. One existing Lit URL group was found in the isolated browser fixtures; live-database matches have not been queried.
 

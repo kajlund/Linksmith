@@ -285,32 +285,104 @@ class MarkdownImport extends LitElement {
   }
 
   private editor(candidate: Candidate) {
-    return html`<section class="import-editor" aria-label="Edit import candidate"><h2>Review entry</h2>
-      <div class="two-columns"><label>Name<input .value=${candidate.name} maxlength="300" @input=${(event: Event) => this.updateCandidate(candidate, { name: (event.target as HTMLInputElement).value })}></label>
-      <label>URL<input type="url" .value=${candidate.url} maxlength="4096" @input=${(event: Event) => this.updateCandidate(candidate, { url: (event.target as HTMLInputElement).value, existing: [] })}></label></div>
-      <label>Description<textarea rows="3" maxlength="20000" .value=${candidate.description} @input=${(event: Event) => this.updateCandidate(candidate, { description: (event.target as HTMLTextAreaElement).value })}></textarea></label>
-      <label>Notes<textarea rows="5" maxlength="50000" .value=${candidate.notes} @input=${(event: Event) => this.updateCandidate(candidate, { notes: (event.target as HTMLTextAreaElement).value })}></textarea></label>
-      <div class="two-columns"><label>Category<input list="import-category-options" .value=${candidate.category} placeholder="Uncategorized, Root, or Root/Child" @input=${(event: Event) => this.updateCandidate(candidate, { category: (event.target as HTMLInputElement).value })}></label>
-      <label>Tags (comma separated)<input list="import-tag-options" .value=${candidate.tags.join(', ')} @change=${(
-        event: Event,
-      ) =>
-        this.updateCandidate(candidate, {
-          tags: (event.target as HTMLInputElement).value
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        })}></label></div>
+    return html`<section
+      class="import-editor"
+      aria-label="Edit import candidate"
+    >
+      <h2>Review entry</h2>
+      <div class="two-columns">
+        <label
+          >Name<input
+            .value=${candidate.name}
+            maxlength="300"
+            @input=${(event: Event) => this.updateCandidate(candidate, { name: (event.target as HTMLInputElement).value })}
+        /></label>
+        <label
+          >URL<input
+            type="url"
+            .value=${candidate.url}
+            maxlength="4096"
+            @input=${(event: Event) => this.updateCandidate(candidate, { url: (event.target as HTMLInputElement).value, existing: [] })}
+        /></label>
+      </div>
+      <label
+        >Description<textarea
+          rows="3"
+          maxlength="20000"
+          .value=${candidate.description}
+          @input=${(event: Event) => this.updateCandidate(candidate, { description: (event.target as HTMLTextAreaElement).value })}
+        ></textarea>
+      </label>
+      <label
+        >Notes<textarea
+          rows="5"
+          maxlength="50000"
+          .value=${candidate.notes}
+          @input=${(event: Event) => this.updateCandidate(candidate, { notes: (event.target as HTMLTextAreaElement).value })}
+        ></textarea>
+      </label>
+      <div class="two-columns">
+        <label
+          >Category<input
+            list="import-category-options"
+            .value=${candidate.category}
+            placeholder="Uncategorized, Root, or Root/Child"
+            @input=${(event: Event) => this.updateCandidate(candidate, { category: (event.target as HTMLInputElement).value })}
+        /></label>
+        <label
+          >Tags (comma separated)<input
+            list="import-tag-options"
+            .value=${candidate.tags.join(', ')}
+            @change=${(event: Event) =>
+              this.updateCandidate(candidate, {
+                tags: (event.target as HTMLInputElement).value
+                  .split(',')
+                  .map((tag) => tag.trim())
+                  .filter(Boolean),
+              })}
+        /></label>
+      </div>
       ${candidate.warnings.map((warning) => html`<p class="import-warning">${warning}</p>`)}
-      <div class="row"><label class="checkbox"><input type="checkbox" .checked=${candidate.included} @change=${(event: Event) => this.updateCandidate(candidate, { included: (event.target as HTMLInputElement).checked, reviewed: true })}>Include (I have reviewed this entry)</label>
-      <button type="button" @click=${() => this.makePrimary(candidate)}>Use as primary; retain shared source and other URLs in notes</button><button type="button" @click=${() => {
-        this.updateCandidate(candidate, { reviewed: true });
-        this.editing = '';
-      }}>Done reviewing</button></div>
-      ${this.sources(candidate)}</section>`;
+      <div class="row">
+        <label class="checkbox"
+          ><input
+            type="checkbox"
+            .checked=${candidate.included}
+            @change=${(event: Event) => this.updateCandidate(candidate, { included: (event.target as HTMLInputElement).checked, reviewed: true })}
+          />Include (I have reviewed this entry)</label
+        >
+        <button type="button" @click=${() => this.makePrimary(candidate)}>
+          Use as primary; retain shared source and other URLs in notes</button
+        ><button
+          type="button"
+          @click=${() => {
+            this.updateCandidate(candidate, { reviewed: true });
+            this.editing = '';
+          }}
+        >
+          Done reviewing
+        </button>
+      </div>
+      ${this.sources(candidate)}
+    </section>`;
   }
 
   private sources(candidate: Candidate) {
-    return html`<details><summary>Original source (${candidate.occurrences.length} occurrences)</summary>${candidate.occurrences.map((occurrence) => html`<p class="small">${occurrence.file}:${occurrence.line}–${occurrence.endLine} · ${occurrence.headings.join(' / ') || 'Unheaded'}</p>${occurrence.parent ? html`<p class="plain muted">Parent item: ${occurrence.parent}</p>` : nothing}<pre class="import-source">${occurrence.excerpt}</pre>${occurrence.description ? html`<p class="plain">Extracted description: ${occurrence.description}</p>` : nothing}`)}</details>`;
+    return html`<details>
+      <summary>
+        Original source (${candidate.occurrences.length} occurrences)
+      </summary>
+      ${candidate.occurrences.map(
+        (occurrence) =>
+          html`<p class="small">
+              ${occurrence.file}:${occurrence.line}–${occurrence.endLine} ·
+              ${occurrence.headings.join(' / ') || 'Unheaded'}
+            </p>
+            ${occurrence.parent ? html`<p class="plain muted">Parent item: ${occurrence.parent}</p>` : nothing}
+            <pre class="import-source">${occurrence.excerpt}</pre>
+            ${occurrence.description ? html`<p class="plain">Extracted description: ${occurrence.description}</p>` : nothing}`,
+      )}
+    </details>`;
   }
 
   render() {
@@ -362,66 +434,257 @@ class MarkdownImport extends LitElement {
           ) ?? [],
       ),
     ];
-    return html`<section class="markdown-import"><h1>Import Markdown</h1><p>Choose resource lists, review the preview, then import selected entries. Source files stay untouched. Files without resource links create no candidates.</p>
-      <label>Markdown files<input type="file" accept=".md,text/markdown" multiple ?disabled=${this.busy} @change=${this.chooseFiles}></label><p class="muted small">20 files · 256 KiB per file · 1 MiB total · 1000 link occurrences · 500 entries per import</p>
+    return html`<section class="markdown-import">
+      <h1>Import Markdown</h1>
+      <p>
+        Choose resource lists, review the preview, then import selected entries.
+        Source files stay untouched. Files without resource links create no
+        candidates.
+      </p>
+      <label
+        >Markdown files<input
+          type="file"
+          accept=".md,text/markdown"
+          multiple
+          ?disabled=${this.busy}
+          @change=${this.chooseFiles}
+      /></label>
+      <p class="muted small">
+        20 files · 256 KiB per file · 1 MiB total · 1000 link occurrences · 500
+        entries per import
+      </p>
       ${this.busy ? html`<p role="status">Working…</p>` : nothing}${this.error ? html`<p role="alert" class="error">${this.error}</p>` : nothing}
-      ${this.result ? html`<section role="status" class="notice"><p>${this.result.created} created · ${this.result.skipped} skipped · ${this.result.failed} failed</p><details><summary>Import results</summary>${this.result.results.map((result) => html`<p>${result.status}: ${result.name} (${result.resourceId})</p>`)}</details></section>` : nothing}
+      ${
+        this.result
+          ? html`<section role="status" class="notice">
+              <p>
+                ${this.result.created} created · ${this.result.skipped} skipped
+                · ${this.result.failed} failed
+              </p>
+              <details>
+                <summary>Import results</summary>
+                ${this.result.results.map((result) => html`<p>${result.status}: ${result.name} (${result.resourceId})</p>`)}
+              </details>
+            </section>`
+          : nothing
+      }
       ${
         this.preview
           ? html`<fieldset ?disabled=${this.busy}>
-        <details><summary>File counts and context</summary>${this.preview.files.map((file) => html`<p>${file.name}: ${file.occurrences} HTTP(S) occurrences · ${file.candidates} distinct candidates · ${file.duplicates} repeated occurrences · ${file.warnings} candidates with warnings · ${file.exclusions} exclusions</p><pre class="import-source">${file.context}</pre>`)}</details>
-        <datalist id="import-category-options">${this.categoryOptions().map((category) => html`<option value=${category}></option>`)}</datalist><datalist id="import-tag-options">${this.tags.map((tag) => html`<option value=${tag.name}></option>`)}</datalist>
-        <div class="two-columns"><label>Group<select aria-label="Group" .value=${this.group} @change=${(
-          event: Event,
-        ) => {
-          this.group = (event.target as HTMLSelectElement).value;
-          this.page = 1;
-        }}><option value="">All groups</option>${groups.map((group) => html`<option value=${group}>${group} (${this.preview?.candidates.filter((candidate) => candidate.occurrences.some((occurrence) => this.groupName(occurrence) === group)).length})</option>`)}</select></label>
-        <label>Show<select aria-label="Show" .value=${this.filter} @change=${(
-          event: Event,
-        ) => {
-          this.filter = (event.target as HTMLSelectElement).value;
-          this.page = 1;
-        }}>${['all', 'warnings', 'duplicates', 'unmapped', 'selected'].map((filter) => html`<option value=${filter}>${filter}</option>`)}</select></label></div>
-        <details><summary>Apply category and tags to all ${filtered.length} filtered entries (across pages)</summary><div class="two-columns"><label>Category<input list="import-category-options" .value=${this.mappingCategory} placeholder="Blank means intentionally uncategorized" @input=${(
-          event: Event,
-        ) => {
-          this.mappingCategory = (event.target as HTMLInputElement).value;
-        }}></label><label>Add tags (comma separated)<input list="import-tag-options" .value=${this.mappingTags} @input=${(
-          event: Event,
-        ) => {
-          this.mappingTags = (event.target as HTMLInputElement).value;
-        }}></label></div><button type="button" @click=${this.applyMapping}>Apply mapping to whole filtered group</button></details>
-        <div class="row import-toolbar"><button type="button" @click=${() => this.selectFiltered(true)}>Select reviewed, nonexisting entries across filtered pages</button><button type="button" @click=${() => this.selectFiltered(false)}>Deselect all filtered entries across pages</button><span>${selected} selected overall · ${filtered.length} shown</span></div>
-        ${
-          this.existingView
-            ? html`<section class="import-editor" aria-label="Existing resource"><h2>${this.existingView.name || this.existingView.domain}</h2><p class="plain">${this.existingView.url}</p><p class="plain">${this.existingView.description}</p><p class="plain">${this.existingView.notes}</p><p>Rating: ${this.existingView.rating ?? 'Unrated'} · Pricing: ${this.existingView.pricing} · Favorite: ${this.existingView.favorite ? 'yes' : 'no'} · Category: ${this.existingView.category?.name ?? 'Uncategorized'} · Tags: ${this.existingView.tags.map((tag) => tag.name).join(', ') || 'none'}</p><button type="button" @click=${() => {
-                this.existingView = null;
-              }}>Close existing resource</button></section>`
-            : nothing
-        }
-        ${editing ? this.editor(editing) : nothing}
-        ${filtered.slice((page - 1) * 25, page * 25).map(
-          (
-            candidate,
-          ) => html`<article class="import-candidate ${candidate.id === this.failedEntry ? 'error' : ''}"><div class="row"><label class="checkbox"><input type="checkbox" .checked=${candidate.included} @change=${(event: Event) => this.updateCandidate(candidate, { included: (event.target as HTMLInputElement).checked, reviewed: true })}>Include ${candidate.name || '(untitled)'}</label><button type="button" @click=${() => {
-            this.editing = candidate.id;
-          }}>Review & edit</button></div><p class="plain small">${candidate.url}</p><p class="muted small">${candidate.category || 'Unmapped / uncategorized'} · Tags: ${candidate.tags.join(', ') || 'none'} · ${candidate.occurrences[0].file}:${candidate.occurrences[0].line}</p>
-          ${candidate.warnings.length ? html`<p class="import-warning">${candidate.reviewed ? 'Reviewed' : 'Review required'}: ${candidate.warnings.join('; ')}</p>` : nothing}${candidate.occurrences.length > 1 ? html`<p>${candidate.occurrences.length} normalized duplicate occurrences grouped</p>` : nothing}
-          ${candidate.existing.length ? html`<p>Already in catalog; default Skip. ${candidate.existing.map((match) => html`<a href=${match.url} target="_blank" rel="noopener noreferrer">${match.name || match.url}</a> (${match.id}) <button type="button" @click=${() => this.viewExisting(match.id)}>View existing ${match.name || match.url}</button>`)}</p>` : nothing}${this.sources(candidate)}</article>`,
-        )}
-        ${!filtered.length ? html`<p>No candidates match this filter.</p>` : nothing}
-        <nav class="pagination" aria-label="Import pagination"><button type="button" ?disabled=${page <= 1} @click=${() => {
-          this.page = page - 1;
-        }}>Previous</button><span>Page ${page} of ${pageCount}</span><button type="button" ?disabled=${page >= pageCount} @click=${() => {
-          this.page = page + 1;
-        }}>Next</button></nav>
-        <details><summary>Proposed new categories/tags for selected entries</summary><p>Categories: ${proposedCategories.join(', ') || 'none'}</p><p>Tags: ${proposedTags.join(', ') || 'none'}</p><p>Only needed categories/tags are created on import; duplicate entries create none.</p></details>
-        <details><summary>Excluded content (${this.preview.exclusions.length})</summary>${this.preview.exclusions.map((exclusion) => html`<p>${exclusion.file}:${exclusion.line} — ${exclusion.reason}</p><pre class="import-source">${exclusion.excerpt}</pre>`)}</details>
-        <p class="muted">Unmapped entries may stay uncategorized. Checking Include confirms review. Existing matches are skipped again by the server. Pricing stays Unknown, rating Unrated, favorite off.</p><button type="button" class="primary" ?disabled=${selected === 0 || selected > 500} @click=${this.apply}>Import selected (${selected})</button>
-      </fieldset>`
+              <details>
+                <summary>File counts and context</summary>
+                ${this.preview.files.map(
+                  (file) =>
+                    html`<p>
+                        ${file.name}: ${file.occurrences} HTTP(S) occurrences ·
+                        ${file.candidates} distinct candidates ·
+                        ${file.duplicates} repeated occurrences ·
+                        ${file.warnings} candidates with warnings ·
+                        ${file.exclusions} exclusions
+                      </p>
+                      <pre class="import-source">${file.context}</pre>`,
+                )}
+              </details>
+              <datalist id="import-category-options">
+                ${this.categoryOptions().map((category) => html`<option value=${category}></option>`)}</datalist
+              ><datalist id="import-tag-options">
+                ${this.tags.map((tag) => html`<option value=${tag.name}></option>`)}
+              </datalist>
+              <div class="two-columns">
+                <label
+                  >Group<select
+                    aria-label="Group"
+                    .value=${this.group}
+                    @change=${(event: Event) => {
+                      this.group = (event.target as HTMLSelectElement).value;
+                      this.page = 1;
+                    }}
+                  >
+                    <option value="">All groups</option>
+                    ${groups.map((group) => html`<option value=${group}>${group} (${this.preview?.candidates.filter((candidate) => candidate.occurrences.some((occurrence) => this.groupName(occurrence) === group)).length})</option>`)}
+                  </select></label
+                >
+                <label
+                  >Show<select
+                    aria-label="Show"
+                    .value=${this.filter}
+                    @change=${(event: Event) => {
+                      this.filter = (event.target as HTMLSelectElement).value;
+                      this.page = 1;
+                    }}
+                  >
+                    ${['all', 'warnings', 'duplicates', 'unmapped', 'selected'].map((filter) => html`<option value=${filter}>${filter}</option>`)}
+                  </select></label
+                >
+              </div>
+              <details>
+                <summary>
+                  Apply category and tags to all ${filtered.length} filtered
+                  entries (across pages)
+                </summary>
+                <div class="two-columns">
+                  <label
+                    >Category<input
+                      list="import-category-options"
+                      .value=${this.mappingCategory}
+                      placeholder="Blank means intentionally uncategorized"
+                      @input=${(event: Event) => {
+                        this.mappingCategory = (
+                          event.target as HTMLInputElement
+                        ).value;
+                      }} /></label
+                  ><label
+                    >Add tags (comma separated)<input
+                      list="import-tag-options"
+                      .value=${this.mappingTags}
+                      @input=${(event: Event) => {
+                        this.mappingTags = (
+                          event.target as HTMLInputElement
+                        ).value;
+                      }}
+                  /></label>
+                </div>
+                <button type="button" @click=${this.applyMapping}>
+                  Apply mapping to whole filtered group
+                </button>
+              </details>
+              <div class="row import-toolbar">
+                <button type="button" @click=${() => this.selectFiltered(true)}>
+                  Select reviewed, nonexisting entries across filtered pages</button
+                ><button
+                  type="button"
+                  @click=${() => this.selectFiltered(false)}
+                >
+                  Deselect all filtered entries across pages</button
+                ><span
+                  >${selected} selected overall · ${filtered.length} shown</span
+                >
+              </div>
+              ${
+                this.existingView
+                  ? html`<section
+                      class="import-editor"
+                      aria-label="Existing resource"
+                    >
+                      <h2>
+                        ${this.existingView.name || this.existingView.domain}
+                      </h2>
+                      <p class="plain">${this.existingView.url}</p>
+                      <p class="plain">${this.existingView.description}</p>
+                      <p class="plain">${this.existingView.notes}</p>
+                      <p>
+                        Rating: ${this.existingView.rating ?? 'Unrated'} ·
+                        Pricing: ${this.existingView.pricing} · Favorite:
+                        ${this.existingView.favorite ? 'yes' : 'no'} · Category:
+                        ${this.existingView.category?.name ?? 'Uncategorized'} ·
+                        Tags:
+                        ${this.existingView.tags.map((tag) => tag.name).join(', ') || 'none'}
+                      </p>
+                      <button
+                        type="button"
+                        @click=${() => {
+                          this.existingView = null;
+                        }}
+                      >
+                        Close existing resource
+                      </button>
+                    </section>`
+                  : nothing
+              }
+              ${editing ? this.editor(editing) : nothing}
+              ${filtered.slice((page - 1) * 25, page * 25).map(
+                (candidate) =>
+                  html`<article
+                    class="import-candidate ${candidate.id === this.failedEntry ? 'error' : ''}"
+                  >
+                    <div class="row">
+                      <label class="checkbox"
+                        ><input
+                          type="checkbox"
+                          .checked=${candidate.included}
+                          @change=${(event: Event) => this.updateCandidate(candidate, { included: (event.target as HTMLInputElement).checked, reviewed: true })}
+                        />Include ${candidate.name || '(untitled)'}</label
+                      ><button
+                        type="button"
+                        @click=${() => {
+                          this.editing = candidate.id;
+                        }}
+                      >
+                        Review & edit
+                      </button>
+                    </div>
+                    <p class="plain small">${candidate.url}</p>
+                    <p class="muted small">
+                      ${candidate.category || 'Unmapped / uncategorized'} ·
+                      Tags: ${candidate.tags.join(', ') || 'none'} ·
+                      ${candidate.occurrences[0].file}:${candidate.occurrences[0].line}
+                    </p>
+                    ${candidate.warnings.length ? html`<p class="import-warning">${candidate.reviewed ? 'Reviewed' : 'Review required'}: ${candidate.warnings.join('; ')}</p>` : nothing}${candidate.occurrences.length > 1 ? html`<p>${candidate.occurrences.length} normalized duplicate occurrences grouped</p>` : nothing}
+                    ${candidate.existing.length ? html`<p>Already in catalog; default Skip. ${candidate.existing.map((match) => html`<a href=${match.url} target="_blank" rel="noopener noreferrer">${match.name || match.url}</a> (${match.id}) <button type="button" @click=${() => this.viewExisting(match.id)}>View existing ${match.name || match.url}</button>`)}</p>` : nothing}${this.sources(candidate)}
+                  </article>`,
+              )}
+              ${!filtered.length ? html`<p>No candidates match this filter.</p>` : nothing}
+              <nav class="pagination" aria-label="Import pagination">
+                <button
+                  type="button"
+                  ?disabled=${page <= 1}
+                  @click=${() => {
+                    this.page = page - 1;
+                  }}
+                >
+                  Previous</button
+                ><span>Page ${page} of ${pageCount}</span
+                ><button
+                  type="button"
+                  ?disabled=${page >= pageCount}
+                  @click=${() => {
+                    this.page = page + 1;
+                  }}
+                >
+                  Next
+                </button>
+              </nav>
+              <details>
+                <summary>
+                  Proposed new categories/tags for selected entries
+                </summary>
+                <p>Categories: ${proposedCategories.join(', ') || 'none'}</p>
+                <p>Tags: ${proposedTags.join(', ') || 'none'}</p>
+                <p>
+                  Only needed categories/tags are created on import; duplicate
+                  entries create none.
+                </p>
+              </details>
+              <details>
+                <summary>
+                  Excluded content (${this.preview.exclusions.length})
+                </summary>
+                ${this.preview.exclusions.map(
+                  (exclusion) =>
+                    html`<p>
+                        ${exclusion.file}:${exclusion.line} —
+                        ${exclusion.reason}
+                      </p>
+                      <pre class="import-source">${exclusion.excerpt}</pre>`,
+                )}
+              </details>
+              <p class="muted">
+                Unmapped entries may stay uncategorized. Checking Include
+                confirms review. Existing matches are skipped again by the
+                server. Pricing stays Unknown, rating Unrated, favorite off.
+              </p>
+              <button
+                type="button"
+                class="primary"
+                ?disabled=${selected === 0 || selected > 500}
+                @click=${this.apply}
+              >
+                Import selected (${selected})
+              </button>
+            </fieldset>`
           : nothing
-      }</section>`;
+      }
+    </section>`;
   }
 }
 customElements.define('linksmith-import', MarkdownImport);

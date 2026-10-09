@@ -9,23 +9,23 @@ Base path: `/api`. Bodies use `Content-Type: application/json`. Unknown fields, 
 
 Drizzle handles database operations and transactions. Migration `002_uuid_ids.sql` converts integer IDs and their references to UUIDs while retaining catalog data. UUID input accepts upper/lowercase hexadecimal and is normalized to lowercase; integer IDs are rejected. New IDs are PostgreSQL-generated random UUIDs. Responses include `X-Request-ID` for matching Pino request logs.
 
-| Method | Route | Behavior |
-| --- | --- | --- |
-| GET | `/health` | 200 `{ "status": "ready" }` or 503 when DB/schema is not ready |
-| GET | `/resources` | Filtered, sorted page |
-| GET | `/resources/{id}` | Full resource or 404 |
-| POST | `/resources` | Create; 201 |
-| PUT | `/resources/{id}` | Replace editable values; 200 |
-| PATCH | `/resources/{id}/favorite` | Body `{ "favorite": true }`; 200 `{ "id": "123e4567-e89b-42d3-a456-426614174000", "favorite": true }` |
-| DELETE | `/resources/{id}` | Delete resource and its tag associations; 204 |
-| GET | `/categories` | Alphabetically sorted category array |
-| POST | `/categories` | Create; 201 |
-| PUT | `/categories/{id}` | Rename/move; 200 |
-| DELETE | `/categories/{id}` | 204 or 409 if children/resources remain |
-| GET | `/tags` | Alphabetically sorted tag array |
-| POST | `/tags` | Create; 201 |
-| PUT | `/tags/{id}` | Rename; 200; conflicting name gives 409 |
-| DELETE | `/tags/{id}` | Remove tag and associations only; 204 |
+| Method | Route                      | Behavior                                                                                              |
+| ------ | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                  | 200 `{ "status": "ready" }` or 503 when DB/schema is not ready                                        |
+| GET    | `/resources`               | Filtered, sorted page                                                                                 |
+| GET    | `/resources/{id}`          | Full resource or 404                                                                                  |
+| POST   | `/resources`               | Create; 201                                                                                           |
+| PUT    | `/resources/{id}`          | Replace editable values; 200                                                                          |
+| PATCH  | `/resources/{id}/favorite` | Body `{ "favorite": true }`; 200 `{ "id": "123e4567-e89b-42d3-a456-426614174000", "favorite": true }` |
+| DELETE | `/resources/{id}`          | Delete resource and its tag associations; 204                                                         |
+| GET    | `/categories`              | Alphabetically sorted category array                                                                  |
+| POST   | `/categories`              | Create; 201                                                                                           |
+| PUT    | `/categories/{id}`         | Rename/move; 200                                                                                      |
+| DELETE | `/categories/{id}`         | 204 or 409 if children/resources remain                                                               |
+| GET    | `/tags`                    | Alphabetically sorted tag array                                                                       |
+| POST   | `/tags`                    | Create; 201                                                                                           |
+| PUT    | `/tags/{id}`               | Rename; 200; conflicting name gives 409                                                               |
+| DELETE | `/tags/{id}`               | Remove tag and associations only; 204                                                                 |
 
 Lists return empty arrays rather than null. Deleting/updating missing items returns 404. Categories/tags are small shared taxonomy lists; bounded pagination applies to resources.
 
@@ -55,18 +55,18 @@ Duplicate comparison follows the normalization described in README. Create or a 
 
 ## List query
 
-All supplied filters combine with AND. Category matches itself and direct children. Tag IDs repeat and require *all* selected tags. Unknown query parameters, repeated scalar parameters, and invalid values return 400. Missing category/tag references also give 400 with a removable-filter message.
+All supplied filters combine with AND. Category matches itself and direct children. Tag IDs repeat and require _all_ selected tags. Unknown query parameters, repeated scalar parameters, and invalid values return 400. Missing category/tag references also give 400 with a removable-filter message.
 
-| Parameter | Values/default |
-| --- | --- |
-| `q` | Case-insensitive literal substring; trimmed; up to 200 characters; `%`/`_` are literal |
-| `category_id` | Category UUID |
-| `tag_id` | Repeatable distinct tag UUID, maximum 50 |
-| `favorite` | `true` restricts to favorites; `false` applies no favorite restriction |
-| `inbox` | `true` restricts to uncategorized; `false` applies no inbox restriction |
-| `sort` | `title` (default), `rating`, or `recent` |
-| `page` | 1–1,000,000; default 1 |
-| `limit` | 1–100; default 30 |
+| Parameter     | Values/default                                                                         |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `q`           | Case-insensitive literal substring; trimmed; up to 200 characters; `%`/`_` are literal |
+| `category_id` | Category UUID                                                                          |
+| `tag_id`      | Repeatable distinct tag UUID, maximum 50                                               |
+| `favorite`    | `true` restricts to favorites; `false` applies no favorite restriction                 |
+| `inbox`       | `true` restricts to uncategorized; `false` applies no inbox restriction                |
+| `sort`        | `title` (default), `rating`, or `recent`                                               |
+| `page`        | 1–1,000,000; default 1                                                                 |
+| `limit`       | 1–100; default 30                                                                      |
 
 Example: `/api/resources?category_id=123e4567-e89b-42d3-a456-426614174000&tag_id=123e4567-e89b-42d3-a456-426614174001&tag_id=123e4567-e89b-42d3-a456-426614174002&favorite=true&q=go&sort=rating&page=1&limit=30`.
 
