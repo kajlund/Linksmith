@@ -14,7 +14,7 @@ Resources, categories, tags, ratings, favorites, pricing, private notes, and key
 - `apps/api/src/config.ts`, `logger.ts`: dotenv configuration and Pino logging.
 - `apps/api/src/import`: Markdown parser, editable mapping suggestions, preview and atomic batch apply.
 - `apps/web/src/import.ts`: bounded import preview and review controls.
-- `apps/api/test`: Node's built-in tests and optional PostgreSQL integration tests.
+- `apps/api/test`: Vitest tests and optional PostgreSQL integration tests.
 - `apps/web/src`: existing Lit frontend, API types, and semantic theme tokens.
 - [API contract](docs/API.md) and [verification record](docs/VERIFICATION.md).
 
@@ -290,3 +290,20 @@ npm run format:check
 ```
 
 ESLint checks supported JavaScript and TypeScript files and treats warnings as failures. Prettier formats its supported source, configuration, and documentation files with single quotes, trailing commas, and LF line endings. Dependencies, generated builds and test output, local data, editor settings, archived artifacts, and dependency lockfiles are excluded. SQL and Nunjucks templates are outside the installed tools' supported file types.
+
+## Resource Kind
+
+Resource Kind describes form (such as Course or Tool), separately from subject
+categories and tags. Create/edit resources with an optional Resource Kind, browse
+with the secondary All kinds filter, and manage kinds using **Manage categories,
+tags & kinds ? Resource Kinds**. Lower sort orders appear first. Archive/reactivate
+kinds there; archived labels remain visible on existing resources. Kinds assigned
+to resources cannot be deleted until those resources are reassigned.
+
+Run `npm run migrate` before starting the upgraded app (or
+`npm run migrate:production` from a compiled deployment). Migration
+`003_resource_kinds.sql` creates the nullable relationship and seeds Tool,
+Article, Tutorial, Course, Book, Video, Documentation, Curated List, and Community.
+Existing resources remain unclassified. The migration runner records the seed once;
+repeat migration runs preserve edits, ordering, archived state, and deletions.
+There is no separate seed command.

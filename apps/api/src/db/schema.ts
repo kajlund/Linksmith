@@ -57,6 +57,24 @@ export const tags = pgTable(
   ],
 );
 
+export const resourceKinds = pgTable(
+  'resource_kinds',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    key: text().notNull().unique(),
+    sort_order: integer().notNull().default(0),
+    archived: boolean().notNull().default(false),
+  },
+  (t) => [
+    uniqueIndex('resource_kinds_name').on(sql`lower(${t.name})`),
+    check(
+      'resource_kinds_name_check',
+      sql`length(btrim(${t.name})) between 1 and 100 and ${t.name} = btrim(${t.name})`,
+    ),
+    check('resource_kinds_sort_order_check', sql`${t.sort_order} >= 0`),
+  ],
+);
 export const resources = pgTable(
   'resources',
   {
@@ -71,6 +89,9 @@ export const resources = pgTable(
     rating: integer(),
     favorite: boolean().notNull().default(false),
     pricing: text().notNull().default('Unknown'),
+    kind_id: uuid().references(() => resourceKinds.id, {
+      onDelete: 'restrict',
+    }),
     category_id: uuid().references(() => categories.id, {
       onDelete: 'restrict',
     }),
@@ -80,6 +101,7 @@ export const resources = pgTable(
   (table) => [
     index('resources_normalized_url').on(table.normalized_url),
     index('resources_category').on(table.category_id),
+    index('resources_kind').on(table.kind_id),
     check('resources_url_check', sql`length(${table.url}) between 1 and 4096`),
     check('resources_name_check', sql`length(${table.name}) <= 300`),
     check(

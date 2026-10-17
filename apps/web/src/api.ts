@@ -9,6 +9,14 @@ export interface Tag {
   name: string;
 }
 
+export interface ResourceKind {
+  id: string;
+  name: string;
+  key: string;
+  sort_order: number;
+  archived: boolean;
+}
+
 export interface ResourceInput {
   url: string;
   name: string;
@@ -18,6 +26,7 @@ export interface ResourceInput {
   rating: number | null;
   favorite: boolean;
   pricing: string;
+  kind_id: string | null;
   category_id: string | null;
   tag_ids: string[];
   acknowledge_duplicate: boolean;
@@ -26,6 +35,7 @@ export interface ResourceInput {
 export interface Resource extends ResourceInput {
   id: string;
   domain: string;
+  kind: ResourceKind | null;
   category: Category | null;
   tags: Tag[];
   created_at: string;

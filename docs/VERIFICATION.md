@@ -45,3 +45,20 @@ Ubuntu/systemd/Caddy and PostgreSQL 14–17 were not executed here. The deployme
 3. Add/edit a resource, acknowledge duplicates, move a category, combine filters, and traverse pages. Save & add another should clear content and retain category context.
 4. Check both themes, mobile navigation/editor, keyboard focus/Escape, and new-tab links.
 5. Restart the service and confirm persistence; keep the reverse proxy restricted to your trusted LAN.
+
+## Resource Kind verification (2026-10-17)
+
+- TypeScript checks, ESLint, Prettier check, and production build pass.
+- All 16 Vitest tests pass against temporary PostgreSQL 18, covering null-kind
+  compatibility, invalid/unknown/archived assignments, retained archived labels,
+  combined filters, duplicate names, deletion protection, and repeat migrations.
+- The Windows sandbox blocks the default Vitest config bundler from traversing
+  an ancestor directory. Used `npm test -w @linksmith/api -- --configLoader native`.
+- Ran `node dist/migrate.js` twice from apps/api against the disposable database
+  (equivalent to `npm run migrate:production`). No real catalog was migrated.
+- Headless Chromium smoke passed for filtering, management rename/order/archive,
+  archived-kind exclusion from new assignments, and the No kind default. Inspected
+  the 390px editor screenshot: no horizontal overflow. No browser page errors.
+  Temporary scripts and screenshots remain ignored under .verification/.
+- Deployment: run `npm run migrate` or `npm run migrate:production` against the
+  target database before restarting the upgraded application.

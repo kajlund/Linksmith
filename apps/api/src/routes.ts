@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { parseFilter } from './catalog/query.js';
 import {
@@ -17,7 +17,7 @@ import {
   saveTag,
 } from './catalog/taxonomy.js';
 import type { Database } from './db/database.js';
-import { schemaMigrations } from './db/schema.js';
+import { resourceKinds, schemaMigrations } from './db/schema.js';
 import { APIError, invalid } from './errors.js';
 import { pathID, readBody, readResource, validateName } from './validation.js';
 
@@ -29,7 +29,7 @@ export function apiRoutes(db: Database) {
       const applied = await db
         .select()
         .from(schemaMigrations)
-        .where(eq(schemaMigrations.version, '002_uuid_ids.sql'));
+        .where(eq(schemaMigrations.version, '003_resource_kinds.sql'));
       if (applied.length) return c.json({ status: 'ready' });
     } catch {
       /* Missing migrations/unreachable database is expected readiness failure. */
@@ -124,6 +124,63 @@ export function apiRoutes(db: Database) {
     return c.body(null, 204);
   });
 
+  api.get('/kinds', async (c) =>
+    c.json(
+      await db
+        .select()
+        .from(resourceKinds)
+        .orderBy(asc(resourceKinds.sort_order), asc(resourceKinds.name)),
+    ),
+  );
+  for (const method of ['post', 'put'] as const) {
+    api[method](method === 'post' ? '/kinds' : '/kinds/:id', async (c) => {
+      const id = method === 'put' ? pathID(c.req.param('id')!) : undefined;
+      const body = await readBody(c, {
+        name: 'string',
+        sort_order: 'integer',
+        archived: 'boolean',
+      });
+      const name = validateName(body.name);
+      const sort_order = body.sort_order ?? 0;
+      if (
+        typeof sort_order !== 'number' ||
+        sort_order < 0 ||
+        sort_order > 2147483647
+      )
+        invalid({ sort_order: 'Enter an order between 0 and 2147483647' });
+      const values = { name, sort_order, archived: body.archived === true };
+      const [saved] =
+        id === undefined
+          ? await db
+              .insert(resourceKinds)
+              .values({
+                ...values,
+                key:
+                  name
+                    .toLowerCase()
+                    .replace(/[^\p{L}\p{N}]+/gu, '-')
+                    .replace(/^-|-$/g, '') || name.toLowerCase(),
+              })
+              .returning()
+          : await db
+              .update(resourceKinds)
+              .set(values)
+              .where(eq(resourceKinds.id, id))
+              .returning();
+      if (!saved)
+        throw new APIError(404, 'not_found', 'This item no longer exists');
+      return c.json(saved, method === 'post' ? 201 : 200);
+    });
+  }
+  api.delete('/kinds/:id', async (c) => {
+    const deleted = await db
+      .delete(resourceKinds)
+      .where(eq(resourceKinds.id, pathID(c.req.param('id'))))
+      .returning();
+    if (!deleted.length)
+      throw new APIError(404, 'not_found', 'This item no longer exists');
+    return c.body(null, 204);
+  });
   api.get('/tags', async (c) => c.json(await listTags(db)));
 
   api.post('/tags', async (c) => {

@@ -17,6 +17,7 @@ import { isUUID } from '../validation.js';
 
 export interface ListFilter {
   q: string;
+  kind_id?: string;
   category_id?: string;
   tag_ids: string[];
   favorite: boolean;
@@ -29,6 +30,7 @@ export interface ListFilter {
 export function parseFilter(query: URLSearchParams): ListFilter {
   const allowed = [
     'q',
+    'kind_id',
     'category_id',
     'tag_id',
     'favorite',
@@ -93,6 +95,9 @@ export function parseFilter(query: URLSearchParams): ListFilter {
 
   return {
     q,
+    kind_id: query.has('kind_id')
+      ? uuid('kind_id', query.get('kind_id') ?? '')
+      : undefined,
     category_id: query.has('category_id')
       ? uuid('category_id', query.get('category_id') ?? '')
       : undefined,
@@ -121,6 +126,8 @@ export function filterWhere(db: Executor, filter: ListFilter) {
         eq(category.parent_id, filter.category_id),
       ),
     );
+  if (filter.kind_id !== undefined)
+    conditions.push(eq(resources.kind_id, filter.kind_id));
   if (filter.favorite) conditions.push(eq(resources.favorite, true));
   if (filter.inbox) conditions.push(isNull(resources.category_id));
   for (const id of filter.tag_ids) {

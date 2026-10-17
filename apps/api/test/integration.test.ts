@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import pino from 'pino';
@@ -10,13 +10,8 @@ import { applyMigrations } from '../src/db/migrations.js';
 
 // No dotenv loading here: opt in via TEST_DATABASE_URL, never DATABASE_URL.
 const url = process.env.TEST_DATABASE_URL;
-test(
+test.skipIf(!url)(
   'PostgreSQL catalog CRUD, migration compatibility, filters, and concurrent duplicates',
-  {
-    skip:
-      !url &&
-      'TEST_DATABASE_URL not set; use an isolated database ending in _test',
-  },
   async () => {
     assert(url, 'TEST_DATABASE_URL must be set');
     const database = decodeURIComponent(new URL(url).pathname.slice(1));
@@ -39,6 +34,7 @@ test(
       assert.deepEqual(history.rows, [
         { version: '001_catalog.sql' },
         { version: '002_uuid_ids.sql' },
+        { version: '003_resource_kinds.sql' },
       ]);
       // Verify direct SQL inserts receive UUID defaults and are readable by the API.
       const legacy = await isolated.pool.query(
@@ -81,6 +77,60 @@ test(
       }
       const legacyID = legacy.rows[0].id as string;
       const legacyRead = await request('GET', `/resources/${legacyID}`);
+      assert.equal(legacyRead.kind_id, null);
+      assert.equal(legacyRead.kind, null);
+      await request('PUT', `/resources/${legacyID}`, {
+        url: legacyRead.url,
+        name: legacyRead.name,
+      });
+      const kinds = await request('GET', '/kinds');
+      assert.equal(kinds.length, 9);
+      const tool = kinds.find((k: { key: string }) => k.key === 'tool');
+      await request('PUT', `/kinds/${tool.id}`, {
+        name: 'My tool',
+        sort_order: 3,
+        archived: true,
+      });
+      await applyMigrations(isolated.db);
+      const preservedKinds = await request('GET', '/kinds');
+      assert.equal(preservedKinds.length, 9);
+      assert.equal(
+        preservedKinds.find((k: { id: string }) => k.id === tool.id).name,
+        'My tool',
+      );
+      await request(
+        'POST',
+        '/resources',
+        { url: 'https://kind-invalid.example', kind_id: tool.id },
+        422,
+      );
+      await request('PUT', `/kinds/${tool.id}`, {
+        name: 'Tool',
+        sort_order: 10,
+        archived: false,
+      });
+      await request('POST', '/kinds', { name: 'TOOL' }, 409);
+      const customKind = await request(
+        'POST',
+        '/kinds',
+        { name: 'Podcast', sort_order: 1 },
+        201,
+      );
+      await request('DELETE', `/kinds/${customKind.id}`, undefined, 204);
+      for (const kind_id of ['bad', '00000000-0000-4000-8000-000000000099']) {
+        await request(
+          'POST',
+          '/resources',
+          { url: 'https://kind-invalid.example', kind_id },
+          422,
+        );
+        await request(
+          'PUT',
+          `/resources/${legacyID}`,
+          { url: legacyRead.url, kind_id },
+          422,
+        );
+      }
       assert.equal(legacyRead.name, 'Existing catalog entry');
       assert.equal(typeof legacyRead.id, 'string');
       assert.equal('normalized_url' in legacyRead, false);
@@ -145,11 +195,35 @@ test(
         description: 'Safe <script> text',
         notes: 'Private',
         keywords: 'toolkit',
+        kind_id: tool.id,
         category_id: child.id,
         favorite: true,
         tag_ids: [tagA.id, tagB.id],
       };
       const first = await request('POST', '/resources', input, 201);
+      assert.equal(first.kind.name, 'Tool');
+      await request('DELETE', `/kinds/${tool.id}`, undefined, 409);
+      await request('PUT', `/kinds/${tool.id}`, {
+        name: 'Tool archived',
+        sort_order: 2,
+        archived: true,
+      });
+      await request('PUT', `/resources/${first.id}`, input);
+      assert.equal(
+        (await request('GET', `/resources/${first.id}`)).kind.name,
+        'Tool archived',
+      );
+      await request(
+        'POST',
+        '/resources',
+        { url: 'https://archived.example', kind_id: tool.id },
+        422,
+      );
+      await request('PUT', `/kinds/${tool.id}`, {
+        name: 'Tool',
+        sort_order: 10,
+        archived: false,
+      });
       assert.equal(first.url, input.url);
       assert.equal(first.domain, 'example.com');
       assert.equal(first.tags.length, 2);
@@ -182,6 +256,11 @@ test(
           query,
         );
       }
+      await matches(
+        `kind_id=${tool.id}&category_id=${root.id}&tag_id=${tagA.id}&q=Alpha`,
+        1,
+      );
+      await matches(`kind_id=${tool.id}&inbox=true`, 0);
       await matches(
         `category_id=${root.id}&tag_id=${tagA.id}&tag_id=${tagB.id}&favorite=true&q=development`,
         1,
@@ -465,4 +544,5 @@ test(
       await admin.pool.end();
     }
   },
+  60_000,
 );

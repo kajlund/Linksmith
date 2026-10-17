@@ -265,6 +265,82 @@ label select {
   padding-left: 28px;
   font-size: 13px;
 }
+.nav-accordion-item {
+  margin-bottom: 2px;
+}
+.nav-accordion-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+.nav-accordion-row .nav {
+  margin-bottom: 0;
+}
+.nav-accordion-row.has-toggle .nav {
+  padding-right: 36px;
+}
+.nav-accordion-row .nav-toggle {
+  position: absolute;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.nav-accordion-row .nav-toggle:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.nav-accordion-row .nav.selected + .nav-toggle {
+  color: var(--accent);
+}
+.nav-accordion-row .nav.selected + .nav-toggle:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+:root[data-theme='dark'] .nav-accordion-row .nav.selected + .nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.nav-subcategories {
+  position: relative;
+  margin-left: 12px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  padding-left: 4px;
+  border-left: 1.5px solid var(--border);
+}
+.nav-subcategories[hidden] {
+  display: none;
+}
+.nav-subcategories .nav.child {
+  padding-left: 12px;
+  font-size: 13px;
+  min-height: 36px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nav-subcategories:not([hidden]) {
+    animation: navSubSlide 0.15s ease-out;
+  }
+}
+@keyframes navSubSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .manage-button {
   font-size: 12px;
   text-align: left;

@@ -204,6 +204,7 @@ export interface ResourceInput {
   rating: number | null;
   favorite: boolean;
   pricing: string;
+  kind_id: string | null;
   category_id: string | null;
   tag_ids: string[];
   acknowledge_duplicate: boolean;
@@ -218,6 +219,7 @@ const resourceFields: Record<keyof ResourceInput, FieldType> = {
   rating: 'nullableInteger',
   favorite: 'boolean',
   pricing: 'string',
+  kind_id: 'nullableString',
   category_id: 'nullableString',
   tag_ids: 'stringArray',
   acknowledge_duplicate: 'boolean',
@@ -238,6 +240,7 @@ export function validateResource(body: Record<string, unknown>) {
     rating: null,
     favorite: false,
     pricing: 'Unknown',
+    kind_id: null,
     category_id: null,
     tag_ids: [],
     acknowledge_duplicate: false,
@@ -275,6 +278,9 @@ export function validateResource(body: Record<string, unknown>) {
   if (input.category_id !== null && !isUUID(input.category_id))
     fields.category_id = 'Choose an existing category (UUID required)';
 
+  if (input.kind_id !== null && !isUUID(input.kind_id))
+    fields.kind_id = 'Choose an existing resource kind (UUID required)';
+  input.kind_id = input.kind_id?.toLowerCase() ?? null;
   input.category_id = input.category_id?.toLowerCase() ?? null;
   input.tag_ids = input.tag_ids.map((id) => id.toLowerCase());
 

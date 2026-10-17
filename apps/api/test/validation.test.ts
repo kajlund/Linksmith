@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { parseFilter } from '../src/catalog/query.js';
 import { normalizeURL, validateCategoryMove } from '../src/validation.js';
 
@@ -131,6 +131,7 @@ test('list filters combine and reject invalid scalar/repeated parameters', () =>
     ),
   );
   assert.deepEqual(filter, {
+    kind_id: undefined,
     category_id: '00000000-0000-4000-8000-000000000007',
     tag_ids: [
       '00000000-0000-4000-8000-000000000002',

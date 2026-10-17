@@ -3,17 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { createDatabase } from '../src/db/database.js';
 import { applyMigrations } from '../src/db/migrations.js';
 
 const url = process.env.TEST_DATABASE_URL;
-test(
+test.skipIf(!url)(
   'UUID upgrade preserves populated integer catalog, rolls back failures, and runs once',
-  {
-    skip: !url && 'TEST_DATABASE_URL not set',
-  },
   async () => {
     assert(url, 'TEST_DATABASE_URL must be set');
     assert(
@@ -48,7 +45,7 @@ test(
           await pool.query(`SELECT jsonb_build_object(
         'categories', (SELECT jsonb_agg(jsonb_build_object('name',c.name,'parent',p.name) ORDER BY c.name) FROM categories c LEFT JOIN categories p ON p.id=c.parent_id),
         'tags', (SELECT jsonb_agg(name ORDER BY name) FROM tags),
-        'resources', (SELECT jsonb_agg((to_jsonb(r)-'id'-'category_id') || jsonb_build_object('category',c.name) ORDER BY r.url) FROM resources r LEFT JOIN categories c ON c.id=r.category_id),
+        'resources', (SELECT jsonb_agg((to_jsonb(r)-'id'-'category_id'-'kind_id') || jsonb_build_object('category',c.name) ORDER BY r.url) FROM resources r LEFT JOIN categories c ON c.id=r.category_id),
         'associations', (SELECT jsonb_agg(jsonb_build_object('url',r.url,'tag',t.name) ORDER BY r.url,t.name) FROM resource_tags rt JOIN resources r ON r.id=rt.resource_id JOIN tags t ON t.id=rt.tag_id)) AS data`)
         ).rows[0].data;
       }
@@ -77,6 +74,14 @@ test(
       assert.deepEqual(await content(), before);
       await applyMigrations(isolated.db);
       assert.deepEqual(await content(), before);
+      assert.equal(
+        (
+          await pool.query(
+            'SELECT count(*)::integer AS count FROM resources WHERE kind_id IS NULL',
+          )
+        ).rows[0].count,
+        2,
+      );
       const ids = (
         await pool.query(
           'SELECT id FROM categories UNION ALL SELECT id FROM tags UNION ALL SELECT id FROM resources ORDER BY id',
@@ -90,7 +95,7 @@ test(
           /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/,
         );
       const columns = await pool.query(
-        "SELECT data_type FROM information_schema.columns WHERE table_schema=$1 AND column_name IN ('id','parent_id','category_id','resource_id','tag_id') AND table_name != 'schema_migrations'",
+        "SELECT data_type FROM information_schema.columns WHERE table_schema=$1 AND column_name IN ('id','parent_id','category_id','resource_id','tag_id') AND table_name NOT IN ('schema_migrations','resource_kinds')",
         [schema],
       );
       assert.equal(columns.rows.length, 7);
@@ -139,4 +144,5 @@ test(
       await rm(directory, { recursive: true, force: true });
     }
   },
+  60_000,
 );

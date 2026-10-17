@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { defaultEnvFile, loadEnvironment, readConfig } from '../src/config.js';
 

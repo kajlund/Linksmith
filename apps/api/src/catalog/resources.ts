@@ -4,6 +4,7 @@ import {
   type Category,
   categories,
   resources,
+  resourceKinds,
   resourceTags,
   type Tag,
   tags,
@@ -22,6 +23,9 @@ const { normalized_url: _privateKey, ...publicColumns } =
   getTableColumns(resources);
 const selection = {
   ...publicColumns,
+  kind: sql<
+    typeof resourceKinds.$inferSelect | null
+  >`(select to_jsonb(k) from resource_kinds k where k.id = ${resources.kind_id})`,
   category: sql<Category | null>`case when ${category.id} is null then null else jsonb_build_object('id', ${category.id}, 'name', ${category.name}, 'parent_id', ${category.parent_id}) end`,
   tags: sql<
     Tag[]
@@ -52,6 +56,20 @@ export async function getResource(db: Executor, id: string) {
 export async function listResources(db: Database, filter: ListFilter) {
   return db.transaction(
     async (tx) => {
+      if (
+        filter.kind_id !== undefined &&
+        !(
+          await tx
+            .select()
+            .from(resourceKinds)
+            .where(eq(resourceKinds.id, filter.kind_id))
+        ).length
+      )
+        throw new APIError(
+          400,
+          'filter',
+          'Selected kind no longer exists; remove this filter',
+        );
       if (filter.category_id !== undefined) {
         const matches = await tx
           .select({ id: categories.id })
@@ -122,14 +140,19 @@ export async function saveResourceInTransaction(
     sql`select pg_advisory_xact_lock(hashtextextended(${normalized.normalized_url}, 0))`,
   );
   let previous: string | undefined;
+  let previousKind: string | null = null;
   if (id !== undefined) {
     const [row] = await tx
-      .select({ normalized: resources.normalized_url })
+      .select({
+        normalized: resources.normalized_url,
+        kind_id: resources.kind_id,
+      })
       .from(resources)
       .where(eq(resources.id, id))
       .for('update');
     if (!row) notFound();
     previous = row.normalized;
+    previousKind = row.kind_id;
   }
   if (previous !== normalized.normalized_url && !input.acknowledge_duplicate) {
     const existing = await resourceQuery(tx)
@@ -148,6 +171,15 @@ export async function saveResourceInTransaction(
         'This URL already exists. Open the existing entry, or acknowledge to save another copy.',
         { existing },
       );
+  }
+  if (input.kind_id !== null) {
+    const [kind] = await tx
+      .select()
+      .from(resourceKinds)
+      .where(eq(resourceKinds.id, input.kind_id))
+      .for('share');
+    if (!kind || (kind.archived && previousKind !== kind.id))
+      invalid({ kind_id: 'Choose an available resource kind' });
   }
   if (input.category_id !== null) {
     const matches = await tx

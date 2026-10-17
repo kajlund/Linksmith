@@ -45,7 +45,7 @@ export function databaseError(code?: string): APIError | undefined {
       return new APIError(
         409,
         'references',
-        'Move child categories and reassign resources before deleting. For saves, refresh and choose existing categories/tags.',
+        'This item is in use. Reassign resources before deleting a kind, or archive it to preserve assignments. Move child categories before deleting their parent. For saves, refresh and choose existing categories, kinds or tags.',
       );
     case '23514':
       return new APIError(

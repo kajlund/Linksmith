@@ -103,3 +103,21 @@ Names are trimmed, nonblank, and at most 100 characters. Case-insensitive unique
 The server validates all entries with ordinary resource validation, serializes import taxonomy changes, acquires sorted normalized URL transaction locks shared with CRUD, and rechecks duplicates under lock. Duplicates are skipped without creating categories/tags. Nonduplicates use the existing resource save logic inside one enclosing transaction. Existing resources are never updated. Response: `{ "created": 2, "skipped": 1, "failed": 0, "results": [{ "id": "candidate-id", "status": "created", "resourceId": "uuid", "name": "Name" }] }`. A problematic entry returns an error with `entry_id`, optional field errors, and `rolled_back: true`; no batch writes survive. A transport failure after commit can be retried: normalized duplicates are skipped.
 
 Import routes allow 2 MiB JSON requests; other API routes retain 128 KiB. Markdown limits are 20 distinct filenames, 256 KiB per file, 1 MiB total, 1000 eligible HTTP(S) occurrences, and 4 MiB extracted preview text. Apply accepts 1–500 entries. Names/paths/tags and resource text use existing limits. Filenames are display labels only and are never used as server filesystem paths. Preview state is client memory, not a saved server upload.
+
+## Resource Kinds
+
+Resources include nullable `kind_id` and `kind` (the full lookup object, or null).
+POST/PUT resource bodies accept an optional nullable UUID `kind_id`; omission
+means no kind. Invalid, unknown, or archived new assignments return 422 with
+`error.fields.kind_id`. An existing archived assignment can be retained on edit.
+GET /api/resources accepts `kind_id`, combined with all existing filters,
+sort and pagination. Omit it for all kinds; archived kinds remain filterable.
+
+- GET /api/kinds lists all kinds, including archived, by sort_order then name.
+- POST /api/kinds creates a kind with name, optional sort_order (default 0),
+  and optional archived (default false).
+- PUT /api/kinds/:id replaces name, sort_order and archived using the same defaults.
+- DELETE /api/kinds/:id returns 204 for an unused kind, or 409 when assigned.
+
+Names are unique ignoring case. A normalized unique key is generated on creation
+and remains stable through renames. Sort order must be an integer from 0 through 2147483647. Archive instead of deleting to preserve resource assignments.

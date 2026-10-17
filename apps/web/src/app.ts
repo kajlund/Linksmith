@@ -1,6 +1,7 @@
-﻿import { html, LitElement, nothing, svg } from 'lit';
+import { html, LitElement, nothing, svg } from 'lit';
 import {
   api,
+  type ResourceKind,
   type Category,
   type ErrorDetail,
   errorDetail,
@@ -54,6 +55,7 @@ const blank = (category: string | null): ResourceInput => ({
   rating: null,
   favorite: false,
   pricing: 'Unknown',
+  kind_id: null,
   category_id: category,
   tag_ids: [],
   acknowledge_duplicate: false,
@@ -63,6 +65,10 @@ class LinksmithApp extends LitElement {
   static properties = Object.fromEntries(
     [
       'importOpen',
+      'kinds',
+      'kind',
+      'managerOrder',
+      'managerArchived',
       'categories',
       'tags',
       'items',
@@ -78,6 +84,7 @@ class LinksmithApp extends LitElement {
       'sort',
       'page',
       'expanded',
+      'expandedCategories',
       'pendingFavorites',
       'form',
       'editing',
@@ -99,6 +106,10 @@ class LinksmithApp extends LitElement {
 
   importOpen = false;
 
+  kinds: ResourceKind[] = [];
+  kind: string | null = null;
+  managerOrder = 0;
+  managerArchived = false;
   categories: Category[] = [];
   tags: Tag[] = [];
   items: Resource[] = [];
@@ -116,6 +127,7 @@ class LinksmithApp extends LitElement {
   page = 1;
 
   expanded = new Set<string>();
+  expandedCategories = new Set<string>();
   pendingFavorites = new Set<string>();
 
   form = blank(null);
@@ -124,7 +136,7 @@ class LinksmithApp extends LitElement {
   saving = false;
   tagText = '';
 
-  managerType: 'categories' | 'tags' = 'categories';
+  managerType: 'categories' | 'tags' | 'kinds' = 'categories';
   managerID: string | null = null;
   managerName = '';
   managerParent: string | null = null;
@@ -132,7 +144,7 @@ class LinksmithApp extends LitElement {
   managing = false;
 
   confirmation: {
-    kind: 'resources' | 'categories' | 'tags';
+    kind: 'resources' | 'categories' | 'tags' | 'kinds';
     id: string;
     name: string;
   } | null = null;
@@ -167,6 +179,7 @@ class LinksmithApp extends LitElement {
 
   private readLocation() {
     const p = new URLSearchParams(location.search);
+    this.kind = p.get('kind_id')?.toLowerCase() ?? null;
     this.query = p.get('q') ?? '';
     this.category = p.get('category_id')?.toLowerCase() ?? null;
     this.favorite = p.get('favorite') === 'true';
@@ -175,10 +188,34 @@ class LinksmithApp extends LitElement {
     const sort = p.get('sort') ?? stored('linksmith.sort', 'title');
     this.sort = ['title', 'rating', 'recent'].includes(sort) ? sort : 'title';
     this.page = Math.max(1, Number(p.get('page')) || 1);
+    this.ensureCategoryExpanded(this.category);
+  }
+
+  private ensureCategoryExpanded(categoryId: string | null) {
+    if (!categoryId) return;
+    const cat = this.categories.find((c) => c.id === categoryId);
+    if (cat?.parent_id) {
+      if (!this.expandedCategories.has(cat.parent_id)) {
+        const next = new Set(this.expandedCategories);
+        next.add(cat.parent_id);
+        this.expandedCategories = next;
+      }
+    }
+  }
+
+  private toggleCategoryExpanded(rootId: string) {
+    const next = new Set(this.expandedCategories);
+    if (next.has(rootId)) {
+      next.delete(rootId);
+    } else {
+      next.add(rootId);
+    }
+    this.expandedCategories = next;
   }
 
   private params() {
     const p = new URLSearchParams();
+    if (this.kind) p.set('kind_id', this.kind);
     if (this.query.trim()) p.set('q', this.query.trim());
     if (this.category !== null) p.set('category_id', String(this.category));
     if (this.favorite) p.set('favorite', 'true');
@@ -200,12 +237,15 @@ class LinksmithApp extends LitElement {
   }
 
   private async taxonomy() {
-    const [categories, tags] = await Promise.all([
+    const [categories, tags, kinds] = await Promise.all([
       api<Category[]>('/categories'),
       api<Tag[]>('/tags'),
+      api<ResourceKind[]>('/kinds'),
     ]);
     this.categories = categories;
     this.tags = tags;
+    this.kinds = kinds;
+    this.ensureCategoryExpanded(this.category);
   }
 
   private async load() {
@@ -239,6 +279,7 @@ class LinksmithApp extends LitElement {
 
   private clear() {
     this.applyFilters(() => {
+      this.kind = null;
       this.query = '';
       this.category = null;
       this.favorite = false;
@@ -284,6 +325,7 @@ class LinksmithApp extends LitElement {
           rating: resource.rating,
           favorite: resource.favorite,
           pricing: resource.pricing,
+          kind_id: resource.kind_id,
           category_id: resource.category_id,
           tag_ids: [...resource.tag_ids],
           acknowledge_duplicate: false,
@@ -403,8 +445,15 @@ class LinksmithApp extends LitElement {
   private selectManaged(id: string | null) {
     this.managerID = id;
     const item = (
-      this.managerType === 'categories' ? this.categories : this.tags
+      this.managerType === 'categories'
+        ? this.categories
+        : this.managerType === 'kinds'
+          ? this.kinds
+          : this.tags
     ).find((i) => i.id === id);
+    this.managerOrder = this.kinds.find((k) => k.id === id)?.sort_order ?? 0;
+    this.managerArchived =
+      this.kinds.find((k) => k.id === id)?.archived ?? false;
     this.managerName = item?.name ?? '';
     this.managerParent =
       this.categories.find((c) => c.id === id)?.parent_id ?? null;
@@ -422,6 +471,9 @@ class LinksmithApp extends LitElement {
         this.managerID ? 'PUT' : 'POST',
         {
           name: this.managerName,
+          ...(this.managerType === 'kinds'
+            ? { sort_order: this.managerOrder, archived: this.managerArchived }
+            : {}),
           ...(this.managerType === 'categories'
             ? { parent_id: this.managerParent }
             : {}),
@@ -440,7 +492,7 @@ class LinksmithApp extends LitElement {
   }
 
   private confirm(
-    kind: 'resources' | 'categories' | 'tags',
+    kind: 'resources' | 'categories' | 'tags' | 'kinds',
     id: string,
     name: string,
   ) {
@@ -459,8 +511,13 @@ class LinksmithApp extends LitElement {
       this.querySelector<HTMLDialogElement>('#delete-dialog')?.close();
       if (item.kind !== 'resources') {
         await this.taxonomy();
-        if (item.kind === 'categories' && this.category === item.id)
-          this.category = null;
+        if (item.kind === 'kinds' && this.kind === item.id) this.kind = null;
+        if (item.kind === 'categories') {
+          if (this.category === item.id) this.category = null;
+          const next = new Set(this.expandedCategories);
+          next.delete(item.id);
+          this.expandedCategories = next;
+        }
         if (item.kind === 'tags')
           this.selectedTags = this.selectedTags.filter((id) => id !== item.id);
         this.selectManaged(null);
@@ -520,40 +577,99 @@ class LinksmithApp extends LitElement {
       <div class="nav-group">
         ${this.categories
           .filter((c) => c.parent_id === null)
-          .map(
-            (root) =>
-              html`<button
+          .map((root) => {
+            const children = this.categories.filter(
+              (c) => c.parent_id === root.id,
+            );
+            const hasChildren = children.length > 0;
+            const isExpanded = this.expandedCategories.has(root.id);
+            return html`<div class="nav-accordion-item">
+              <div
+                class=${
+                  hasChildren
+                    ? 'nav-accordion-row has-toggle'
+                    : 'nav-accordion-row'
+                }
+              >
+                <button
                   class=${this.category === root.id ? 'nav selected' : 'nav'}
                   aria-pressed=${this.category === root.id}
                   @click=${() =>
                     this.applyFilters(() => {
-                      this.category =
-                        this.category === root.id ? null : root.id;
+                      const isSelecting = this.category !== root.id;
+                      this.category = isSelecting ? root.id : null;
+                      if (isSelecting && hasChildren) {
+                        const next = new Set(this.expandedCategories);
+                        next.add(root.id);
+                        this.expandedCategories = next;
+                      }
                     })}
                 >
                   ${root.name}
                 </button>
-                ${this.categories
-                  .filter((c) => c.parent_id === root.id)
-                  .map(
-                    (child) =>
-                      html`<button
-                        class=${this.category === child.id ? 'nav child selected' : 'nav child'}
-                        aria-pressed=${this.category === child.id}
-                        @click=${() =>
-                          this.applyFilters(() => {
-                            this.category =
-                              this.category === child.id ? null : child.id;
-                          })}
+                ${
+                  hasChildren
+                    ? html`<button
+                        type="button"
+                        class=${
+                          isExpanded
+                            ? 'icon-button expand nav-toggle open'
+                            : 'icon-button expand nav-toggle'
+                        }
+                        aria-label=${
+                          (isExpanded ? 'Collapse ' : 'Expand ') +
+                          root.name +
+                          ' subcategories'
+                        }
+                        aria-expanded=${isExpanded}
+                        aria-controls=${`subcategories-${root.id}`}
+                        @click=${(e: Event) => {
+                          e.stopPropagation();
+                          this.toggleCategoryExpanded(root.id);
+                        }}
                       >
-                        ${child.name}
-                      </button>`,
-                  )}`,
-          )}
+                        ${icon('chevron')}
+                      </button>`
+                    : nothing
+                }
+              </div>
+              ${
+                hasChildren
+                  ? html`<div
+                      id=${`subcategories-${root.id}`}
+                      class="nav-subcategories"
+                      ?hidden=${!isExpanded}
+                      role="group"
+                      aria-label=${`${root.name} subcategories`}
+                    >
+                      ${children.map(
+                        (child) =>
+                          html`<button
+                            class=${
+                              this.category === child.id
+                                ? 'nav child selected'
+                                : 'nav child'
+                            }
+                            aria-pressed=${this.category === child.id}
+                            @click=${() =>
+                              this.applyFilters(() => {
+                                this.category =
+                                  this.category === child.id ? null : child.id;
+                                this.ensureCategoryExpanded(child.id);
+                              })}
+                          >
+                            ${child.name}
+                          </button>`,
+                      )}
+                    </div>`
+                  : nothing
+              }
+            </div>`;
+          })}
         ${this.categories.length ? nothing : html`<p class="muted small">A little structure goes a long way. Add your first category below.</p>`}
       </div>
       <button class="quiet manage-button" @click=${this.openManager}>
-        ${icon('edit')} Manage categories & tags
+        ${icon('edit')} Manage categories, tags & kinds
       </button>
     </nav>`;
   }
@@ -605,6 +721,7 @@ class LinksmithApp extends LitElement {
         </div>
       </div>
       ${r.description ? html`<p class="preview">${r.description}</p>` : nothing}
+      ${r.kind ? html`<div class="entry-tags"><span>${r.kind.name}</span></div>` : nothing}
       ${r.tags.length ? html`<div class="entry-tags">${r.tags.map((t) => html`<span>${t.name}</span>`)}</div>` : nothing}
       <div id=${`details-${r.id}`} ?hidden=${!expanded} class="entry-details">
         ${
@@ -633,6 +750,8 @@ class LinksmithApp extends LitElement {
           <div>
             <dt>Pricing</dt>
             <dd>${r.pricing}</dd>
+            <dt>Resource Kind</dt>
+            <dd>${r.kind?.name ?? 'No kind'}</dd>
           </div>
           <div>
             <dt>Added</dt>
@@ -750,6 +869,15 @@ class LinksmithApp extends LitElement {
             >${this.fieldError('category_id')}</label
           >
           <div class="form-group">
+            <label
+              >Resource Kind<select
+                .value=${f.kind_id ?? ''}
+                @change=${(e: Event) => this.setForm('kind_id', (e.target as HTMLSelectElement).value || null)}
+              >
+                <option value="">No kind</option>
+                ${this.kinds.filter((k) => !k.archived || k.id === f.kind_id).map((k) => html`<option value=${k.id}>${k.name}${k.archived ? ' (archived)' : ''}</option>`)}</select
+              >${this.fieldError('kind_id')}</label
+            >
             <label for="tag-input">Tags</label>
             <div class="row">
               <input
@@ -897,7 +1025,7 @@ class LinksmithApp extends LitElement {
       @cancel=${this.cancel}
     >
       <header class="dialog-header">
-        <h2 id="manage-heading">Categories & tags</h2>
+        <h2 id="manage-heading">Categories, tags & kinds</h2>
         <button
           class="icon-button"
           aria-label="Close management"
@@ -924,7 +1052,15 @@ class LinksmithApp extends LitElement {
             this.selectManaged(null);
           }}
         >
-          Tags
+          Tags</button
+        ><button
+          aria-pressed=${this.managerType === 'kinds'}
+          @click=${() => {
+            this.managerType = 'kinds';
+            this.selectManaged(null);
+          }}
+        >
+          Resource Kinds
         </button>
       </div>
       <form @submit=${this.saveManaged}>
@@ -936,9 +1072,9 @@ class LinksmithApp extends LitElement {
             >
               <option value="">
                 Add new
-                ${this.managerType === 'categories' ? 'category' : 'tag'}
+                ${this.managerType === 'categories' ? 'category' : this.managerType === 'kinds' ? 'kind' : 'tag'}
               </option>
-              ${this.managerType === 'categories' ? this.categoryOptions() : this.tags.map((t) => html`<option value=${t.id}>${t.name}</option>`)}
+              ${this.managerType === 'categories' ? this.categoryOptions() : (this.managerType === 'kinds' ? this.kinds : this.tags).map((t) => html`<option value=${t.id}>${t.name}</option>`)}
             </select></label
           >
           <label
@@ -950,6 +1086,39 @@ class LinksmithApp extends LitElement {
                 this.managerName = (e.target as HTMLInputElement).value;
               }}
           /></label>
+          ${
+            this.managerType === 'kinds'
+              ? html`<label
+                    >Sort order<input
+                      type="number"
+                      min="0"
+                      max="2147483647"
+                      required
+                      .value=${String(this.managerOrder)}
+                      @input=${(e: Event) => {
+                        this.managerOrder = (
+                          e.target as HTMLInputElement
+                        ).valueAsNumber;
+                      }} /></label
+                  ><label
+                    ><input
+                      type="checkbox"
+                      .checked=${this.managerArchived}
+                      @change=${(e: Event) => {
+                        this.managerArchived = (
+                          e.target as HTMLInputElement
+                        ).checked;
+                      }}
+                    />
+                    Archived</label
+                  >
+                  <p class="muted small">
+                    Lower orders appear first. Archived kinds keep existing
+                    assignments and cannot be newly assigned. Reassign resources
+                    before deleting a kind in use.
+                  </p>`
+              : nothing
+          }
           ${
             this.managerType === 'categories'
               ? html`<label
@@ -968,10 +1137,12 @@ class LinksmithApp extends LitElement {
                     Two levels: root and child. Move children and reassign
                     resources before deleting a category.
                   </p>`
-              : html`<p class="muted small">
-                  Deleting a tag removes its associations; resources stay in
-                  your notebook.
-                </p>`
+              : this.managerType === 'kinds'
+                ? nothing
+                : html`<p class="muted small">
+                    Deleting a tag removes its associations; resources stay in
+                    your notebook.
+                  </p>`
           }
         </fieldset>
         ${this.managerError ? html`<p class="error" role="alert">${this.managerError}</p>` : nothing}
@@ -1030,6 +1201,7 @@ class LinksmithApp extends LitElement {
             ? 'Favorites'
             : 'All resources';
     const active =
+      this.kind !== null ||
       this.query ||
       this.category !== null ||
       this.favorite ||
@@ -1101,6 +1273,19 @@ class LinksmithApp extends LitElement {
                 }}
             /></label>
             <div class="filter-controls">
+              <label
+                >Resource Kind<select
+                  .value=${this.kind ?? ''}
+                  @change=${(e: Event) => {
+                    this.applyFilters(() => {
+                      this.kind = (e.target as HTMLSelectElement).value || null;
+                    });
+                  }}
+                >
+                  <option value="">All kinds</option>
+                  ${this.kinds.map((k) => html`<option value=${k.id}>${k.name}${k.archived ? ' (archived)' : ''}</option>`)}${this.kind && !this.kinds.some((k) => k.id === this.kind) ? html`<option value=${this.kind}>Deleted kind</option>` : nothing}
+                </select></label
+              >
               <label
                 >Tag<select
                   aria-label="Add tag filter"
@@ -1279,7 +1464,7 @@ class LinksmithApp extends LitElement {
       >
         <h2 id="delete-heading">
           Delete
-          ${this.confirmation?.kind === 'resources' ? 'resource' : this.confirmation?.kind === 'tags' ? 'tag' : 'category'}?
+          ${this.confirmation?.kind === 'kinds' ? 'resource kind' : this.confirmation?.kind === 'resources' ? 'resource' : this.confirmation?.kind === 'tags' ? 'tag' : 'category'}?
         </h2>
         <p class="plain">${this.confirmation?.name}</p>
         <p class="muted">
