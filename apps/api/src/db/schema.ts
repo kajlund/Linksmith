@@ -63,6 +63,7 @@ export const resourceKinds = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     name: text().notNull(),
     key: text().notNull().unique(),
+    description: text().notNull().default(''),
     sort_order: integer().notNull().default(0),
     archived: boolean().notNull().default(false),
   },
@@ -71,6 +72,10 @@ export const resourceKinds = pgTable(
     check(
       'resource_kinds_name_check',
       sql`length(btrim(${t.name})) between 1 and 100 and ${t.name} = btrim(${t.name})`,
+    ),
+    check(
+      'resource_kinds_description_check',
+      sql`length(${t.description}) <= 2000`,
     ),
     check('resource_kinds_sort_order_check', sql`${t.sort_order} >= 0`),
   ],

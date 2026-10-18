@@ -62,3 +62,5 @@ Ubuntu/systemd/Caddy and PostgreSQL 14–17 were not executed here. The deployme
   Temporary scripts and screenshots remain ignored under .verification/.
 - Deployment: run `npm run migrate` or `npm run migrate:production` against the
   target database before restarting the upgraded application.
+
+Resource Kind descriptions follow-up (2026-10-17): migration 004 defaults existing descriptions to empty; API coverage verifies create, preservation when omitted, clearing, and length/NUL validation. The archive control now uses the existing checkbox class. Type checks, lint, and production build pass.

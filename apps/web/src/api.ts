@@ -13,6 +13,7 @@ export interface ResourceKind {
   id: string;
   name: string;
   key: string;
+  description: string;
   sort_order: number;
   archived: boolean;
 }

@@ -67,6 +67,7 @@ class LinksmithApp extends LitElement {
       'importOpen',
       'kinds',
       'kind',
+      'managerDescription',
       'managerOrder',
       'managerArchived',
       'categories',
@@ -108,6 +109,7 @@ class LinksmithApp extends LitElement {
 
   kinds: ResourceKind[] = [];
   kind: string | null = null;
+  managerDescription = '';
   managerOrder = 0;
   managerArchived = false;
   categories: Category[] = [];
@@ -451,6 +453,8 @@ class LinksmithApp extends LitElement {
           ? this.kinds
           : this.tags
     ).find((i) => i.id === id);
+    this.managerDescription =
+      this.kinds.find((k) => k.id === id)?.description ?? '';
     this.managerOrder = this.kinds.find((k) => k.id === id)?.sort_order ?? 0;
     this.managerArchived =
       this.kinds.find((k) => k.id === id)?.archived ?? false;
@@ -472,7 +476,11 @@ class LinksmithApp extends LitElement {
         {
           name: this.managerName,
           ...(this.managerType === 'kinds'
-            ? { sort_order: this.managerOrder, archived: this.managerArchived }
+            ? {
+                description: this.managerDescription,
+                sort_order: this.managerOrder,
+                archived: this.managerArchived,
+              }
             : {}),
           ...(this.managerType === 'categories'
             ? { parent_id: this.managerParent }
@@ -1089,6 +1097,17 @@ class LinksmithApp extends LitElement {
           ${
             this.managerType === 'kinds'
               ? html`<label
+                    >Description<textarea
+                      rows="3"
+                      maxlength="2000"
+                      .value=${this.managerDescription}
+                      @input=${(e: Event) => {
+                        this.managerDescription = (
+                          e.target as HTMLTextAreaElement
+                        ).value;
+                      }}
+                    ></textarea></label
+                  ><label
                     >Sort order<input
                       type="number"
                       min="0"
@@ -1100,7 +1119,7 @@ class LinksmithApp extends LitElement {
                           e.target as HTMLInputElement
                         ).valueAsNumber;
                       }} /></label
-                  ><label
+                  ><label class="checkbox"
                     ><input
                       type="checkbox"
                       .checked=${this.managerArchived}

@@ -121,3 +121,5 @@ sort and pagination. Omit it for all kinds; archived kinds remain filterable.
 
 Names are unique ignoring case. A normalized unique key is generated on creation
 and remains stable through renames. Sort order must be an integer from 0 through 2147483647. Archive instead of deleting to preserve resource assignments.
+
+Resource Kinds also include `description` (text, default empty, maximum 2000 characters). POST/PUT /api/kinds accept it; surrounding whitespace is trimmed. Omit it on update to preserve the saved description, or send an empty string to clear it. Invalid descriptions return 422 with `error.fields.description`.

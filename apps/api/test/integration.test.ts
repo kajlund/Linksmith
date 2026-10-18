@@ -35,6 +35,7 @@ test.skipIf(!url)(
         { version: '001_catalog.sql' },
         { version: '002_uuid_ids.sql' },
         { version: '003_resource_kinds.sql' },
+        { version: '004_resource_kind_descriptions.sql' },
       ]);
       // Verify direct SQL inserts receive UUID defaults and are readable by the API.
       const legacy = await isolated.pool.query(
@@ -113,9 +114,33 @@ test.skipIf(!url)(
       const customKind = await request(
         'POST',
         '/kinds',
-        { name: 'Podcast', sort_order: 1 },
+        { name: 'Podcast', description: ' Audio episodes ', sort_order: 1 },
         201,
       );
+      assert.equal(customKind.description, 'Audio episodes');
+      const renamedKind = await request('PUT', `/kinds/${customKind.id}`, {
+        name: 'Audio',
+      });
+      assert.equal(renamedKind.description, 'Audio episodes');
+      await request('PUT', `/kinds/${customKind.id}`, {
+        name: 'Audio',
+        description: '',
+      });
+      assert.equal(
+        (await request('GET', '/kinds')).find(
+          (k: { id: string }) => k.id === customKind.id,
+        ).description,
+        '',
+      );
+      for (const description of ['x'.repeat(2001), 'bad\0text']) {
+        await request('POST', '/kinds', { name: 'Invalid', description }, 422);
+        await request(
+          'PUT',
+          `/kinds/${customKind.id}`,
+          { name: 'Audio', description },
+          422,
+        );
+      }
       await request('DELETE', `/kinds/${customKind.id}`, undefined, 204);
       for (const kind_id of ['bad', '00000000-0000-4000-8000-000000000099']) {
         await request(

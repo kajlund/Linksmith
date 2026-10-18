@@ -29,7 +29,9 @@ export function apiRoutes(db: Database) {
       const applied = await db
         .select()
         .from(schemaMigrations)
-        .where(eq(schemaMigrations.version, '003_resource_kinds.sql'));
+        .where(
+          eq(schemaMigrations.version, '004_resource_kind_descriptions.sql'),
+        );
       if (applied.length) return c.json({ status: 'ready' });
     } catch {
       /* Missing migrations/unreachable database is expected readiness failure. */
@@ -137,6 +139,7 @@ export function apiRoutes(db: Database) {
       const id = method === 'put' ? pathID(c.req.param('id')!) : undefined;
       const body = await readBody(c, {
         name: 'string',
+        description: 'string',
         sort_order: 'integer',
         archived: 'boolean',
       });
@@ -148,7 +151,25 @@ export function apiRoutes(db: Database) {
         sort_order > 2147483647
       )
         invalid({ sort_order: 'Enter an order between 0 and 2147483647' });
-      const values = { name, sort_order, archived: body.archived === true };
+      const description =
+        typeof body.description === 'string'
+          ? body.description.trim()
+          : undefined;
+      if (
+        description !== undefined &&
+        ([...description].length > 2000 ||
+          description.includes('\0') ||
+          Buffer.from(description).toString('utf8') !== description)
+      )
+        invalid({
+          description: 'Enter valid text with at most 2000 characters',
+        });
+      const values = {
+        name,
+        sort_order,
+        archived: body.archived === true,
+        ...(description === undefined ? {} : { description }),
+      };
       const [saved] =
         id === undefined
           ? await db

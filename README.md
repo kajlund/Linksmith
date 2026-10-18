@@ -307,3 +307,5 @@ Article, Tutorial, Course, Book, Video, Documentation, Curated List, and Communi
 Existing resources remain unclassified. The migration runner records the seed once;
 repeat migration runs preserve edits, ordering, archived state, and deletions.
 There is no separate seed command.
+
+Migration `004_resource_kind_descriptions.sql` adds optional Resource Kind descriptions. Edit descriptions in the Resource Kinds management tab. Run the normal migration command before starting the upgraded app.
