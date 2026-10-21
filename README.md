@@ -18,7 +18,9 @@ Resources, categories, tags, ratings, favorites, pricing, private notes, and key
 - `apps/web/src`: existing Lit frontend, API types, and semantic theme tokens.
 - [API contract](docs/API.md) and [verification record](docs/VERIFICATION.md).
 
-Use **Node.js 22.12+** (Node 24 recommended), npm, and PostgreSQL **14+**. Docker and Go are not required. PostgreSQL can run on your home server; `psql` is useful for initial administration.
+Use **Node.js 24 LTS**, npm, and PostgreSQL **14+**. The root and workspaces declare Node `24.x`; `.nvmrc` selects major 24 for version managers that support it. Docker and Go are not required. PostgreSQL can run on your home server; `psql` is useful for initial administration.
+
+See [DreamQuest repository conventions](docs/dreamquest-conventions.md) for the development workflow and the conventions used as a reference for the other applications.
 
 Versions checked against registries and pinned: Hono 4.13.13, `@hono/node-server` 2.1.3, Drizzle ORM 0.45.3, `pg` 8.23.1, dotenv 18.0.6, Pino 10.4.0, pino-pretty 13.2.0, tsx 4.23.15, and TypeScript 7.0.2. The client retains Lit 3.3.3 and Vite 8.3.3. The root `package-lock.json` covers all workspaces; run `npm ci` from the repository root for reproducible installs.
 
@@ -89,9 +91,9 @@ npm run build -w @linksmith/web
 npm start -w @linksmith/api
 ```
 
-The migration locks the catalog tables and converts IDs atomically. A failure rolls back the upgrade; rerunning after success skips it and keeps the assigned UUIDs. Fresh databases apply both migrations. The existing npm migration script already discovers numbered SQL files; no additional script is needed. With compiled production code, use `npm run migrate:production -w @linksmith/api` after building the server.
+The migration locks the catalog tables and converts IDs atomically. A failure rolls back the upgrade; rerunning after success skips it and keeps the assigned UUIDs. Fresh databases apply all numbered migrations. The existing npm migration script already discovers numbered SQL files; no additional script is needed. With compiled production code, use `npm run migrate:production -w @linksmith/api` after building the server.
 
-IDs change once during this upgrade. Previously saved integer resource links and category/tag filter URLs no longer identify entries; reopen the app and clear old filters. External clients must send UUID strings. The UUID migration itself does not import or export data. Start the updated server with the rebuilt client after migration; readiness requires the UUID migration.
+IDs change once during this upgrade. Previously saved integer resource links and category/tag filter URLs no longer identify entries; reopen the app and clear old filters. External clients must send UUID strings. The UUID migration itself does not import or export data. Start the updated server with the rebuilt client after migration; readiness currently requires migration `004_resource_kind_descriptions.sql`.
 
 ## Development
 
@@ -106,7 +108,8 @@ Root npm commands forward to the apps/web/server packages:
 | `npm run build`              | Build both client and server                                                                                      |
 | `npm run migrate`            | Apply pending migrations using the root `.env`                                                                    |
 | `npm run migrate:production` | Apply migrations using the compiled server                                                                        |
-| `npm run check`              | Type-check both packages                                                                                          |
+| `npm run typecheck`          | Type-check both packages                                                                                          |
+| `npm run check`              | Type-check both packages, lint, then run API tests; stops on failure                                              |
 | `npm test`                   | Run server tests                                                                                                  |
 | `npm run verify:start`       | Start the compiled app and check built pages/assets over HTTP using an unused local port and a dummy database URL |
 
@@ -241,7 +244,7 @@ After=network.target
 [Service]
 User=linksmith
 Group=linksmith
-WorkingDirectory=/opt/linksmith/server
+WorkingDirectory=/opt/linksmith
 EnvironmentFile=/etc/linksmith.env
 ExecStart=/usr/bin/node /opt/linksmith/apps/api/dist/index.js
 Restart=on-failure
@@ -259,7 +262,7 @@ Before first start, apply migrations using the same environment:
 ```sh
 sudo systemd-run --wait --pipe --collect --unit=linksmith-migrate \
   --property=User=linksmith --property=Group=linksmith \
-  --property=WorkingDirectory=/opt/linksmith/server \
+  --property=WorkingDirectory=/opt/linksmith \
   --property=EnvironmentFile=/etc/linksmith.env \
   /usr/bin/node /opt/linksmith/apps/api/dist/migrate.js
 sudo systemctl daemon-reload
@@ -280,7 +283,7 @@ Configure local DNS, trust Caddy's local CA on your devices, and restrict ingres
 
 ## Linting and formatting
 
-All Dreamquest projects use the same ESLint and Prettier configuration, based on Activus. Run these commands from the repository root:
+Linksmith uses root ESLint and Prettier configuration as a reference for DreamQuest standardization. Run these commands from the repository root:
 
 ```sh
 npm run lint

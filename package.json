@@ -1,6 +1,9 @@
 {
   "name": "linksmith",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "workspaces": [
     "apps/*"
   ],
@@ -11,11 +14,11 @@
     "build": "npm run build -w @linksmith/web && npm run build -w @linksmith/api",
     "migrate": "npm run migrate -w @linksmith/api",
     "migrate:production": "npm run migrate:production -w @linksmith/api",
-    "check": "npm run typecheck",
-    "test": "npm test --workspaces --if-present",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "test": "npm test -w @linksmith/api",
     "dev:api": "npm run dev -w @linksmith/api",
     "dev:web": "npm run dev -w @linksmith/web",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces",
     "verify:start": "node scripts/verify-start.mjs",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",

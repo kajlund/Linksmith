@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "check": "tsc --noEmit",
+    "check": "npm run typecheck",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",

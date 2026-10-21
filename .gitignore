@@ -20,6 +20,13 @@ node_modules/
 
 # Temporary verification tools, database data, and screenshots
 /.verification/
+.compiled/
+.artifacts/
+.cache/
+.vite/
+coverage/
+playwright-report/
+test-results/
 
 # Logs and local editor/OS files
 *.log
